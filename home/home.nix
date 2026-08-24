@@ -13,4 +13,8 @@
     enable = true;
     createDirectories = true;
   };
+  # Dotfiles
+  xdg.configFile = {
+    "hypr".source = ./dots/hypr;
+  };
 }
