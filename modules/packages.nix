@@ -20,5 +20,12 @@
     nemo
     qbittorrent
     baobab
+    quickshell
+    librewolf
+    lollypop
+    
+    # Utilities
+    hyprpaper
+    imv
     ];
 }

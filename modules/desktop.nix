@@ -1,4 +1,4 @@
-# This module is intended for desktop/GUI settings
+# This module is intended for desktop settings
 
 { pkgs, ... }:
 
@@ -8,6 +8,7 @@
     xwayland.enable = true;
   };
   
+  programs.dconf.enable = true;
 
 }
 

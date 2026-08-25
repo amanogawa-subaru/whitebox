@@ -11,6 +11,9 @@ in
     (import "${home-manager}/nixos")
   ];
   
+  # Enable trash
+  services.gvfs.enable = true;
+  
   # Graphics
   hardware.graphics = {
     enable = true;

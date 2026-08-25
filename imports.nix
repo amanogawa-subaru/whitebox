@@ -6,6 +6,7 @@
     ./modules/desktop.nix
     ./modules/programs.nix
     ./modules/packages.nix
-    ./modules/nvidia.nix
+    ./modules/fonts.nix
+   # ./modules/nvidia.nix
   ];
 }
