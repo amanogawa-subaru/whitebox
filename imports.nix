@@ -1,4 +1,4 @@
-{ ... }:
+{ lib, ... }:
 
 let
   settings = import ./settings.nix;
@@ -17,6 +17,6 @@ in
     ./modules/programs.nix
     ./modules/packages.nix
     ./modules/fonts.nix
-   # ./modules/nvidia.nix
-  ];
+  ]
+  ++ lib.optional settings.nvidia ./modules/nvidia.nix;
 }

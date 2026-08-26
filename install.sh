@@ -40,12 +40,46 @@ fi
 
 
 # ─────────────────────────────────────────────
+# Detect GPU
+# ─────────────────────────────────────────────
+
+echo
+echo "Detecting GPU..."
+
+NVIDIA=false
+
+for DEVICE in /sys/bus/pci/devices/*; do
+    [ -f "$DEVICE/vendor" ] || continue
+    [ -f "$DEVICE/class" ] || continue
+
+    VENDOR="$(cat "$DEVICE/vendor")"
+    CLASS="$(cat "$DEVICE/class")"
+
+    # NVIDIA vendor ID: 0x10de
+    # PCI display controller class: 0x03xxxx
+    if [ "$VENDOR" = "0x10de" ] \
+        && [[ "$CLASS" == 0x03* ]]; then
+
+        NVIDIA=true
+        break
+    fi
+done
+
+if [ "$NVIDIA" = true ]; then
+    echo "NVIDIA GPU detected."
+else
+    echo "No NVIDIA GPU detected."
+fi
+
+
+# ─────────────────────────────────────────────
 # Generate local settings
 # ─────────────────────────────────────────────
 
 cat > "$REPO_DIR/settings.nix" <<EOF
 {
   username = "$USERNAME";
+  nvidia = $NVIDIA;
 }
 EOF
 
