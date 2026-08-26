@@ -40,13 +40,51 @@ fi
 
 
 # ─────────────────────────────────────────────
-# Detect GPU
+# PCI bus ID conversion
+#
+# Linux:
+#   0000:01:00.0
+#
+# NixOS PRIME:
+#   PCI:1:0:0
+# ─────────────────────────────────────────────
+
+pci_to_nix_bus_id() {
+    local pci_address="$1"
+
+    # Remove PCI domain.
+    local address="${pci_address#*:}"
+
+    local bus="${address%%:*}"
+    local rest="${address#*:}"
+
+    local device="${rest%%.*}"
+    local function="${rest#*.}"
+
+    printf 'PCI:%d:%d:%d' \
+        "$((16#$bus))" \
+        "$((16#$device))" \
+        "$((16#$function))"
+}
+
+
+# ─────────────────────────────────────────────
+# Detect graphics hardware
 # ─────────────────────────────────────────────
 
 echo
-echo "Detecting GPU..."
+echo "Detecting graphics hardware..."
 
 NVIDIA=false
+NVIDIA_PRIME=false
+
+NVIDIA_DEVICE=""
+INTEL_DEVICE=""
+AMD_DEVICE=""
+
+NVIDIA_BUS_ID=""
+IGPU_BUS_ID=""
+PRIME_IGPU=""
 
 for DEVICE in /sys/bus/pci/devices/*; do
     [ -f "$DEVICE/vendor" ] || continue
@@ -55,20 +93,116 @@ for DEVICE in /sys/bus/pci/devices/*; do
     VENDOR="$(cat "$DEVICE/vendor")"
     CLASS="$(cat "$DEVICE/class")"
 
-    # NVIDIA vendor ID: 0x10de
-    # PCI display controller class: 0x03xxxx
-    if [ "$VENDOR" = "0x10de" ] \
-        && [[ "$CLASS" == 0x03* ]]; then
+    # PCI class 0x03xxxx = display controller.
+    [[ "$CLASS" == 0x03* ]] || continue
 
-        NVIDIA=true
+    PCI_ADDRESS="$(basename "$DEVICE")"
+
+    case "$VENDOR" in
+
+        # NVIDIA
+        0x10de)
+            if [ -z "$NVIDIA_DEVICE" ]; then
+                NVIDIA_DEVICE="$PCI_ADDRESS"
+            fi
+            ;;
+
+        # Intel
+        0x8086)
+            if [ -z "$INTEL_DEVICE" ]; then
+                INTEL_DEVICE="$PCI_ADDRESS"
+            fi
+            ;;
+
+        # AMD / ATI
+        0x1002)
+            if [ -z "$AMD_DEVICE" ]; then
+                AMD_DEVICE="$PCI_ADDRESS"
+            fi
+            ;;
+    esac
+done
+
+
+# ─────────────────────────────────────────────
+# NVIDIA detection
+# ─────────────────────────────────────────────
+
+if [ -n "$NVIDIA_DEVICE" ]; then
+    NVIDIA=true
+
+    NVIDIA_BUS_ID="$(
+        pci_to_nix_bus_id "$NVIDIA_DEVICE"
+    )"
+
+    echo "NVIDIA GPU detected:"
+    echo "  PCI device: $NVIDIA_DEVICE"
+    echo "  Bus ID:     $NVIDIA_BUS_ID"
+else
+    echo "No NVIDIA GPU detected."
+fi
+
+
+# ─────────────────────────────────────────────
+# Laptop detection
+#
+# PRIME is mainly relevant to hybrid laptops.
+# Requiring a battery prevents a multi-GPU
+# desktop from being mistaken for one.
+# ─────────────────────────────────────────────
+
+HAS_BATTERY=false
+
+for BATTERY in /sys/class/power_supply/BAT*; do
+    if [ -e "$BATTERY" ]; then
+        HAS_BATTERY=true
         break
     fi
 done
 
-if [ "$NVIDIA" = true ]; then
-    echo "NVIDIA GPU detected."
-else
-    echo "No NVIDIA GPU detected."
+
+# ─────────────────────────────────────────────
+# PRIME detection
+# ─────────────────────────────────────────────
+
+if [ "$NVIDIA" = true ] \
+    && [ "$HAS_BATTERY" = true ]; then
+
+    if [ -n "$INTEL_DEVICE" ]; then
+        NVIDIA_PRIME=true
+        PRIME_IGPU="intel"
+
+        IGPU_BUS_ID="$(
+            pci_to_nix_bus_id "$INTEL_DEVICE"
+        )"
+
+    elif [ -n "$AMD_DEVICE" ]; then
+        NVIDIA_PRIME=true
+        PRIME_IGPU="amd"
+
+        IGPU_BUS_ID="$(
+            pci_to_nix_bus_id "$AMD_DEVICE"
+        )"
+    fi
+fi
+
+
+if [ "$NVIDIA_PRIME" = true ]; then
+    echo
+    echo "Hybrid NVIDIA laptop detected."
+
+    if [ "$PRIME_IGPU" = "intel" ]; then
+        echo "Integrated GPU: Intel"
+    else
+        echo "Integrated GPU: AMD"
+    fi
+
+    echo "  iGPU Bus ID:   $IGPU_BUS_ID"
+    echo "  NVIDIA Bus ID: $NVIDIA_BUS_ID"
+
+elif [ "$NVIDIA" = true ]; then
+    echo
+    echo "NVIDIA GPU detected without hybrid PRIME configuration."
 fi
 
 
@@ -79,10 +213,17 @@ fi
 cat > "$REPO_DIR/settings.nix" <<EOF
 {
   username = "$USERNAME";
+
   nvidia = $NVIDIA;
+  nvidiaPrime = $NVIDIA_PRIME;
+
+  primeIGPU = "$PRIME_IGPU";
+  igpuBusId = "$IGPU_BUS_ID";
+  nvidiaBusId = "$NVIDIA_BUS_ID";
 }
 EOF
 
+echo
 echo "Generated settings.nix"
 
 
@@ -134,7 +275,7 @@ else
 
     # Inject Whitebox into the imports list.
     #
-    # Supports both:
+    # Supports:
     #
     #   imports = [
     #
@@ -143,7 +284,7 @@ else
     #   imports =
     #     [
     #
-    # including the default NixOS format:
+    # including the stock NixOS style:
     #
     #   imports =
     #     [ # Include the results of the hardware scan.
@@ -161,7 +302,6 @@ else
         /^[[:space:]]*imports[[:space:]]*=/ {
             print
 
-            # Opening bracket is already on this line.
             if ($0 ~ /\[/) {
                 print "    " import
                 inserted = 1
@@ -231,8 +371,8 @@ if ! sudo nixos-rebuild dry-build; then
     echo
     echo "ERROR: Whitebox configuration failed to build."
 
-    # Only restore configuration.nix if this particular
-    # installer run modified it.
+    # Only restore configuration.nix if this
+    # particular installer run modified it.
     if [ "$BACKUP_CREATED" = true ]; then
         echo "Restoring original configuration.nix..."
 

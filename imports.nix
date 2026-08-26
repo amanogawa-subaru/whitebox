@@ -7,9 +7,8 @@ in
 
 {
   _module.args = {
-    inherit username;
-  };  	  	
-
+    inherit username settings;
+  };
 
   imports = [
     ./modules/system.nix
@@ -18,5 +17,10 @@ in
     ./modules/packages.nix
     ./modules/fonts.nix
   ]
-  ++ lib.optional settings.nvidia ./modules/nvidia.nix;
+  ++ lib.optional
+    settings.nvidia
+    ./modules/nvidia.nix
+  ++ lib.optional
+    settings.nvidiaPrime
+    ./modules/nvidia-prime.nix;
 }

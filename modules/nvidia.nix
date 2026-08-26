@@ -1,4 +1,5 @@
-# This module is intended for nvidia settings
+# Generic NVIDIA configuration
+# Used by any system with an NVIDIA GPU.
 
 { config, ... }:
 
@@ -9,21 +10,17 @@
   ];
 
   hardware.nvidia = {
+    # Required for Wayland compositors such as Hyprland.
     modesetting.enable = true;
+
+    # Use NVIDIA's open kernel modules.
     open = true;
+
+    # Install nvidia-settings.
     nvidiaSettings = true;
 
-    package = config.boot.kernelPackages.nvidiaPackages.stable;
-
-    prime = {
-      offload = {
-        enable = true;
-        enableOffloadCmd = true;
-      };
-
-      intelBusId = "PCI:0@0:2:0";
-      nvidiaBusId = "PCI:1@0:0:0";
-    };
+    # Use the stable NVIDIA driver.
+    package =
+      config.boot.kernelPackages.nvidiaPackages.stable;
   };
 }
-
