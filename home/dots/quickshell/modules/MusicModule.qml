@@ -1,15 +1,34 @@
 import QtQuick
-import Quickshell
-import Quickshell.Services.Mpris
 
 import "../Config"
+import "music"
 
-Item {
+FocusScope {
     id: root
 
-    property bool hovered: mouseArea.containsMouse
+    // ─────────────────────────────────────────
+    // Backend
+    // ─────────────────────────────────────────
+
+    MusicBackend {
+        id: music
+        active: root.expanded
+    }
+
+    // ─────────────────────────────────────────
+    // State
+    // ─────────────────────────────────────────
+
+    property bool suppressHover: false
+
+    property bool hovered:
+        compactMouse.containsMouse
+        && !root.suppressHover
+
     property bool expanded: false
-    property bool contentVisible: false
+    property bool closing: false
+    property bool shrinking: false
+    property bool collapseBase: false
 
     // ─────────────────────────────────────────
     // Compact sizing
@@ -27,219 +46,124 @@ Item {
     property real compactSpacing:
         10 * Appearance.scale
 
-    // ─────────────────────────────────────────
-    // MPRIS
-    // ─────────────────────────────────────────
-
-    property var player:
-        Mpris.players.values.length > 0
-            ? Mpris.players.values[0]
-            : null
-
-    property bool hasPlayer:
-        root.player !== null
-
-    property string title:
-        root.player && root.player.trackTitle
-            ? root.player.trackTitle
-            : ""
-
-    property string artist:
-        root.player && root.player.trackArtist
-            ? root.player.trackArtist
-            : ""
-
-    property bool playing:
-        root.player
-            ? root.player.playbackState
-                === MprisPlaybackState.Playing
-            : false
-
-    property string compactText: {
-        if (
-            root.artist.length > 0
-            && root.title.length > 0
-        ) {
-            return root.artist
-                + " — "
-                + root.title
-        }
-
-        if (root.title.length > 0)
-            return root.title
-
-        if (root.artist.length > 0)
-            return root.artist
-
-        return "Unknown track"
-    }
-
-    // ─────────────────────────────────────────
-    // High-resolution artwork
-    // ─────────────────────────────────────────
-
-    /*
-     * Firefox's MPRIS extension gives us a
-     * hilariously tiny 60x60 mpris:artUrl.
-     *
-     * But it also exposes the real media page
-     * through xesam:url.
-     *
-     * For YouTube:
-     *
-     * xesam:url
-     *      ↓
-     * video ID
-     *      ↓
-     * i.ytimg.com high-resolution thumbnail
-     *
-     * Everything else continues using MPRIS art.
-     */
-
-    property string mediaUrl: {
-        if (!root.player || !root.player.metadata)
-            return ""
-
-        const value =
-            root.player.metadata["xesam:url"]
-
-        return value
-            ? value.toString()
-            : ""
-    }
-
-    property string youtubeId: {
-        const url = root.mediaUrl
-
-        if (!url)
-            return ""
-
-        /*
-         * Standard:
-         * youtube.com/watch?v=VIDEO_ID
-         */
-        let match =
-            url.match(/[?&]v=([^&#]+)/)
-
-        if (match && match[1])
-            return match[1]
-
-        /*
-         * Short:
-         * youtu.be/VIDEO_ID
-         */
-        match =
-            url.match(
-                /youtu\.be\/([^?&#/]+)/
-            )
-
-        if (match && match[1])
-            return match[1]
-
-        /*
-         * Shorts:
-         * youtube.com/shorts/VIDEO_ID
-         */
-        match =
-            url.match(
-                /youtube\.com\/shorts\/([^?&#/]+)/
-            )
-
-        if (match && match[1])
-            return match[1]
-
-        return ""
-    }
-
-    property bool isYouTube:
-        root.youtubeId.length > 0
-
-    property int youtubeArtworkStage: 0
-
-    /*
-     * Stage 0:
-     * maxresdefault
-     *
-     * Stage 1:
-     * sddefault
-     *
-     * Stage 2:
-     * hqdefault
-     *
-     * Stage 3:
-     * original MPRIS artwork
-     */
-
-    property url artworkSource: {
-        if (!root.isYouTube) {
-            return root.player
-                && root.player.trackArtUrl
-                    ? root.player.trackArtUrl
-                    : ""
-        }
-
-        const base =
-            "https://i.ytimg.com/vi/"
-            + root.youtubeId
-            + "/"
-
-        if (root.youtubeArtworkStage === 0)
-            return base + "maxresdefault.jpg"
-
-        if (root.youtubeArtworkStage === 1)
-            return base + "sddefault.jpg"
-
-        if (root.youtubeArtworkStage === 2)
-            return base + "hqdefault.jpg"
-
-        return root.player
-            && root.player.trackArtUrl
-                ? root.player.trackArtUrl
-                : ""
-    }
-
-    onYoutubeIdChanged: {
-        youtubeArtworkStage = 0
-    }
-
-    // ─────────────────────────────────────────
-    // Text measurement
-    // ─────────────────────────────────────────
-
     TextMetrics {
         id: compactTextMetrics
-
-        font.pixelSize:
-            Appearance.textSize
-
-        text:
-            root.compactText
+        font.pixelSize: Appearance.textSize
+        text: music.compactText
     }
+
+    TextMetrics {
+        id: compactIconMetrics
+        font.family: "Symbols Nerd Font"
+        font.pixelSize: Appearance.iconSize
+        text: "󰎈"
+    }
+
+    property real compactWantedWidth: {
+        if (!music.hasPlayer)
+            return Appearance.moduleHeight
+
+        const wantedWidth =
+            compactTextMetrics.advanceWidth
+            + compactIconMetrics.advanceWidth
+            + root.compactSpacing
+            + root.compactHorizontalPadding
+
+        return Math.max(
+            root.musicMinWidth,
+            Math.min(wantedWidth, root.musicMaxWidth)
+        )
+    }
+
+    // ─────────────────────────────────────────
+    // Design / fixed geometry
+    // ─────────────────────────────────────────
+
+    property color accentColor:
+        Colors.green
+
+    property real expandedHeaderHeight:
+        48 * Appearance.scale
+
+    property real expandedEdgeThickness:
+        Appearance.borderWidth
+
+    property real expandedWidth:
+        320 * Appearance.scale
+
+    property real contentMargin:
+        14 * Appearance.scale
+
+    property real contentSpacing:
+        12 * Appearance.scale
+
+    property real albumArtHeight:
+        270 * Appearance.scale
+
+    property real trackInfoHeight:
+        72 * Appearance.scale
+
+    property real playbackCardHeight:
+        105 * Appearance.scale
+
+    property real expandedHeight:
+        root.expandedHeaderHeight
+        + root.expandedEdgeThickness
+        + root.contentMargin * 2
+        + root.albumArtHeight
+        + root.trackInfoHeight
+        + root.playbackCardHeight
+        + root.contentSpacing * 2
+
+    property real closeFillTop:
+        root.expandedHeaderHeight
+
+    property real closeBounceScale:
+        1.0
 
     // ─────────────────────────────────────────
     // Open / Close
     // ─────────────────────────────────────────
 
     function open() {
-        if (!root.hasPlayer)
+        if (!music.hasPlayer)
             return
 
-        collapseDelay.stop()
+        closeAnimation.stop()
+
+        root.suppressHover = false
+        root.closing = false
+        root.shrinking = false
+        root.collapseBase = false
+        root.closeFillTop = root.expandedHeaderHeight
+        root.closeBounceScale = 1.0
+
+        expandedContent.opacity = 0.0
+
+        music.queryDuration()
 
         root.expanded = true
-        root.contentVisible = false
 
         contentDelay.restart()
+        focusDelay.restart()
     }
 
     function close() {
-        if (!root.expanded)
+        if (!root.expanded || root.closing)
             return
 
-        contentDelay.stop()
+        music.scrubbing = false
 
-        root.contentVisible = false
-        collapseDelay.restart()
+        contentDelay.stop()
+        focusDelay.stop()
+
+        root.closing = true
+        root.shrinking = false
+        root.collapseBase = false
+        root.closeFillTop = root.expandedHeaderHeight
+        root.closeBounceScale = 1.0
+
+        closeAnimation.restart()
     }
 
     function toggle() {
@@ -249,41 +173,39 @@ Item {
             root.open()
     }
 
-    onHasPlayerChanged: {
-        if (!root.hasPlayer && root.expanded)
+    onExpandedChanged: {
+        if (!root.expanded)
+            music.scrubbing = false
+    }
+
+    Connections {
+        target: music
+
+        function onHasPlayerChanged() {
+            if (!music.hasPlayer && root.expanded)
+                root.close()
+        }
+    }
+
+    Keys.onEscapePressed: event => {
+        if (root.expanded) {
             root.close()
+            event.accepted = true
+        }
     }
 
     // ─────────────────────────────────────────
     // Geometry
     // ─────────────────────────────────────────
 
-    width: {
-        if (root.expanded)
-            return 320 * Appearance.scale
-
-        if (!root.hasPlayer)
-            return Appearance.moduleHeight
-
-        const wantedWidth =
-            compactTextMetrics.advanceWidth
-            + musicIcon.implicitWidth
-            + root.compactSpacing
-            + root.compactHorizontalPadding
-
-        return Math.max(
-            root.musicMinWidth,
-            Math.min(
-                wantedWidth,
-                root.musicMaxWidth
-            )
-        )
-    }
+    width:
+        root.expanded && !root.shrinking
+            ? root.expandedWidth
+            : root.compactWantedWidth
 
     height:
-        root.expanded
-            ? expandedContent.implicitHeight
-                + 32 * Appearance.scale
+        root.expanded && !root.shrinking
+            ? root.expandedHeight
             : Appearance.moduleHeight
 
     Behavior on width {
@@ -300,675 +222,364 @@ Item {
         }
     }
 
-    // ─────────────────────────────────────────
-    // Outer shell
-    // ─────────────────────────────────────────
+    // ═════════════════════════════════════════
+    // Visual root
+    // ═════════════════════════════════════════
 
-    Rectangle {
-        id: background
+    Item {
+        id: visualRoot
 
         anchors.fill: parent
 
-        radius:
-            Appearance.moduleRadius
+        scale: {
+            if (root.closing)
+                return root.closeBounceScale
 
-        color:
-            root.hasPlayer
-                ? Colors.base
-                : Colors.green
+            if (root.hovered && !root.expanded)
+                return 1.09
 
-        border.width:
-            Appearance.borderWidth
-
-        border.color:
-            Colors.green
-
-        scale:
-            root.hovered && !root.expanded
-                ? 1.09
-                : 1.0
-
-        transformOrigin:
-            Item.Center
-
-        Behavior on color {
-            ColorAnimation {
-                duration: 200
-            }
+            return 1.0
         }
 
+        transformOrigin: Item.Center
+
         Behavior on scale {
+            enabled: !root.closing
+
             NumberAnimation {
                 duration: 300
                 easing.type: Easing.OutBack
                 easing.overshoot: 1.9
             }
         }
-    }
 
-    // ─────────────────────────────────────────
-    // Compact view
-    // ─────────────────────────────────────────
+        Rectangle {
+            id: outerShell
 
-    Row {
-        id: compactContent
+            anchors.fill: parent
+            radius: Appearance.moduleRadius
 
-        visible:
-            !root.expanded
+            color: {
+                if (!music.hasPlayer)
+                    return root.accentColor
 
-        anchors {
-            left: parent.left
-            right: parent.right
-            verticalCenter: parent.verticalCenter
+                if (root.hovered && !root.expanded)
+                    return root.accentColor
 
-            leftMargin:
-                root.hasPlayer
-                    ? 14 * Appearance.scale
-                    : 0
+                if (root.collapseBase)
+                    return Colors.base
 
-            rightMargin:
-                root.hasPlayer
-                    ? 14 * Appearance.scale
-                    : 0
-        }
+                if (root.expanded)
+                    return root.accentColor
 
-        spacing:
-            root.hasPlayer
-                ? root.compactSpacing
-                : 0
+                return Colors.base
+            }
 
-        Text {
-            id: musicIcon
-
-            width:
-                root.hasPlayer
-                    ? implicitWidth
-                    : parent.width
-
-            anchors.verticalCenter:
-                parent.verticalCenter
-
-            text:
-                "󰎆"
-
-            font.family:
-                "Symbols Nerd Font"
-
-            font.pixelSize:
-                Appearance.iconSize
-
-            color:
-                root.hasPlayer
-                    ? Colors.green
-                    : Colors.base
-
-            horizontalAlignment:
-                Text.AlignHCenter
+            border.width: Appearance.borderWidth
+            border.color: root.accentColor
 
             Behavior on color {
-                ColorAnimation {
-                    duration: 200
-                }
-            }
-        }
-
-        Text {
-            visible:
-                root.hasPlayer
-
-            width:
-                parent.width
-                - musicIcon.width
-                - parent.spacing
-
-            anchors.verticalCenter:
-                parent.verticalCenter
-
-            text:
-                root.compactText
-
-            color:
-                Colors.text
-
-            font.pixelSize:
-                Appearance.textSize
-
-            elide:
-                Text.ElideRight
-
-            maximumLineCount:
-                1
-        }
-    }
-
-    // ─────────────────────────────────────────
-    // Expanded content
-    // ─────────────────────────────────────────
-
-    Column {
-        id: expandedContent
-
-        z: 2
-
-        width:
-            root.width
-            - 32 * Appearance.scale
-
-        anchors {
-            top: parent.top
-            horizontalCenter: parent.horizontalCenter
-
-            topMargin:
-                16 * Appearance.scale
-        }
-
-        spacing:
-            14 * Appearance.scale
-
-        visible:
-            opacity > 0
-
-        opacity:
-            root.contentVisible
-                ? 1.0
-                : 0.0
-
-        transform: Translate {
-            y:
-                root.contentVisible
-                    ? 0
-                    : 8
-
-            Behavior on y {
-                NumberAnimation {
-                    duration: 200
-                    easing.type: Easing.OutCubic
-                }
-            }
-        }
-
-        Behavior on opacity {
-            NumberAnimation {
-                duration: 200
-                easing.type: Easing.OutCubic
+                ColorAnimation { duration: 160 }
             }
         }
 
         // ─────────────────────────────────────
-        // Album art
+        // Header
+        // ─────────────────────────────────────
+
+        MusicHeader {
+            id: musicHeader
+
+            z: 7
+            width: visualRoot.width
+
+            anchors {
+                left: parent.left
+                top: parent.top
+            }
+
+            backend: music
+            expanded: root.expanded
+            closing: root.closing
+            hovered: root.hovered
+            collapseBase: root.collapseBase
+            accentColor: root.accentColor
+            compactSpacing: root.compactSpacing
+            expandedHeaderHeight: root.expandedHeaderHeight
+        }
+
+        // ─────────────────────────────────────
+        // Expanded body
         // ─────────────────────────────────────
 
         Rectangle {
-            id: albumArtContainer
+            id: bodyCard
+
+            z: 3
+            visible: root.expanded
+
+            x: root.expandedEdgeThickness
+            y: root.expandedHeaderHeight
 
             width:
-                280 * Appearance.scale
+                Math.max(
+                    0,
+                    visualRoot.width
+                    - root.expandedEdgeThickness * 2
+                )
 
             height:
-                width
-
-            anchors.horizontalCenter:
-                parent.horizontalCenter
-
-            radius:
-                Appearance.controlRadius
-
-            color:
-                Colors.surface0
-
-            clip:
-                true
-
-            Image {
-                id: albumArt
-
-                anchors.fill:
-                    parent
-
-                source:
-                    root.artworkSource
-
-                fillMode:
-                    Image.PreserveAspectCrop
-
-                smooth:
-                    true
-
-                mipmap:
-                    true
-
-                asynchronous:
-                    true
-
-                cache:
-                    true
-
-                visible:
-                    status === Image.Ready
-
-                onStatusChanged: {
-                    if (status !== Image.Error)
-                        return
-
-                    /*
-                     * YouTube artwork failed.
-                     * Walk down through increasingly
-                     * compatible thumbnail sizes.
-                     */
-                    if (
-                        root.isYouTube
-                        && root.youtubeArtworkStage < 3
-                    ) {
-                        root.youtubeArtworkStage++
-                    }
-                }
-            }
-
-            Text {
-                anchors.centerIn:
-                    parent
-
-                visible:
-                    albumArt.status !== Image.Ready
-
-                text:
-                    "󰝚"
-
-                font.family:
-                    "Symbols Nerd Font"
-
-                font.pixelSize:
-                    64 * Appearance.scale
-
-                color:
-                    Colors.green
-            }
-        }
-
-        // ─────────────────────────────────────
-        // Track info
-        // ─────────────────────────────────────
-
-        Rectangle {
-            id: trackInfoCard
-
-            width:
-                parent.width
-
-            implicitHeight:
-                trackInfoColumn.implicitHeight
-                + 28 * Appearance.scale
-
-            height:
-                implicitHeight
+                Math.max(
+                    0,
+                    visualRoot.height
+                    - root.expandedHeaderHeight
+                    - root.expandedEdgeThickness
+                )
 
             radius:
-                Appearance.controlRadius
+                Math.max(
+                    0,
+                    Appearance.moduleRadius
+                    - root.expandedEdgeThickness
+                )
 
-            color:
-                Colors.surface0
+            color: Colors.base
+            clip: true
 
             Column {
-                id: trackInfoColumn
+                id: expandedContent
 
                 width:
                     parent.width
-                    - 28 * Appearance.scale
+                    - root.contentMargin * 2
 
-                anchors.centerIn:
-                    parent
-
-                spacing:
-                    7 * Appearance.scale
-
-                Text {
-                    width:
-                        parent.width
-
-                    text:
-                        root.title.length > 0
-                            ? root.title
-                            : "Unknown track"
-
-                    horizontalAlignment:
-                        Text.AlignHCenter
-
-                    color:
-                        Colors.text
-
-                    font.pixelSize:
-                        Appearance.textSize + 2
-
-                    font.bold:
-                        true
-
-                    wrapMode:
-                        Text.Wrap
-
-                    maximumLineCount:
-                        3
-
-                    elide:
-                        Text.ElideRight
+                anchors {
+                    top: parent.top
+                    horizontalCenter: parent.horizontalCenter
+                    topMargin: root.contentMargin
                 }
 
-                Text {
-                    width:
-                        parent.width
+                spacing: root.contentSpacing
+                opacity: 0.0
 
-                    text:
-                        root.artist.length > 0
-                            ? root.artist
-                            : "Unknown artist"
+                transform: Translate {
+                    y:
+                        expandedContent.opacity > 0
+                            ? 0
+                            : 8 * Appearance.scale
 
-                    horizontalAlignment:
-                        Text.AlignHCenter
+                    Behavior on y {
+                        NumberAnimation {
+                            duration: 200
+                            easing.type: Easing.OutCubic
+                        }
+                    }
+                }
 
-                    color:
-                        Colors.green
+                Behavior on opacity {
+                    NumberAnimation {
+                        duration: 180
+                        easing.type: Easing.OutCubic
+                    }
+                }
 
-                    font.pixelSize:
-                        Appearance.textSize
+                AlbumArtCard {
+                    width: parent.width
+                    height: root.albumArtHeight
+                    backend: music
+                    accentColor: root.accentColor
+                }
 
-                    wrapMode:
-                        Text.Wrap
+                TrackInfoCard {
+                    width: parent.width
+                    height: root.trackInfoHeight
+                    backend: music
+                    accentColor: root.accentColor
+                }
 
-                    maximumLineCount:
-                        2
-
-                    elide:
-                        Text.ElideRight
+                PlaybackCard {
+                    width: parent.width
+                    height: root.playbackCardHeight
+                    backend: music
+                    accentColor: root.accentColor
                 }
             }
         }
 
         // ─────────────────────────────────────
-        // Playback controls
+        // Closing wipe
         // ─────────────────────────────────────
 
         Rectangle {
-            id: playbackCard
+            id: closeFill
+
+            z: 5
+            visible: root.closing
+
+            x: root.expandedEdgeThickness
+            y: root.closeFillTop
 
             width:
-                parent.width
+                Math.max(
+                    0,
+                    visualRoot.width
+                    - root.expandedEdgeThickness * 2
+                )
 
             height:
-                74 * Appearance.scale
+                Math.max(
+                    0,
+                    visualRoot.height
+                    - root.closeFillTop
+                    - root.expandedEdgeThickness
+                )
 
             radius:
-                Appearance.controlRadius
+                Math.max(
+                    0,
+                    Appearance.moduleRadius
+                    - root.expandedEdgeThickness
+                )
 
-            color:
-                Colors.surface0
-
-            Row {
-                anchors.centerIn:
-                    parent
-
-                spacing:
-                    30 * Appearance.scale
-
-                // Previous
-
-                Item {
-                    width:
-                        38 * Appearance.scale
-
-                    height:
-                        width
-
-                    Text {
-                        anchors.centerIn:
-                            parent
-
-                        text:
-                            "󰒮"
-
-                        font.family:
-                            "Symbols Nerd Font"
-
-                        font.pixelSize:
-                            Appearance.iconSize + 2
-
-                        color:
-                            previousMouse.containsMouse
-                                ? Colors.green
-                                : Colors.text
-
-                        scale:
-                            previousMouse.containsMouse
-                                ? 1.15
-                                : 1.0
-
-                        Behavior on color {
-                            ColorAnimation {
-                                duration: 150
-                            }
-                        }
-
-                        Behavior on scale {
-                            NumberAnimation {
-                                duration: 200
-                                easing.type: Easing.OutBack
-                                easing.overshoot: 1.4
-                            }
-                        }
-                    }
-
-                    MouseArea {
-                        id: previousMouse
-
-                        anchors.fill:
-                            parent
-
-                        hoverEnabled:
-                            true
-
-                        onClicked: {
-                            if (
-                                root.player
-                                && root.player.canGoPrevious
-                            ) {
-                                root.player.previous()
-                            }
-                        }
-                    }
-                }
-
-                // Play / Pause
-
-                Item {
-                    width:
-                        46 * Appearance.scale
-
-                    height:
-                        width
-
-                    Text {
-                        anchors.centerIn:
-                            parent
-
-                        text:
-                            root.playing
-                                ? "󰏤"
-                                : "󰐊"
-
-                        font.family:
-                            "Symbols Nerd Font"
-
-                        font.pixelSize:
-                            Appearance.iconSize + 8
-
-                        color:
-                            playMouse.containsMouse
-                                ? Colors.green
-                                : Colors.text
-
-                        scale:
-                            playMouse.containsMouse
-                                ? 1.15
-                                : 1.0
-
-                        Behavior on color {
-                            ColorAnimation {
-                                duration: 150
-                            }
-                        }
-
-                        Behavior on scale {
-                            NumberAnimation {
-                                duration: 200
-                                easing.type: Easing.OutBack
-                                easing.overshoot: 1.4
-                            }
-                        }
-                    }
-
-                    MouseArea {
-                        id: playMouse
-
-                        anchors.fill:
-                            parent
-
-                        hoverEnabled:
-                            true
-
-                        onClicked: {
-                            if (!root.player)
-                                return
-
-                            if (root.player.canTogglePlaying)
-                                root.player.togglePlaying()
-                        }
-                    }
-                }
-
-                // Next
-
-                Item {
-                    width:
-                        38 * Appearance.scale
-
-                    height:
-                        width
-
-                    Text {
-                        anchors.centerIn:
-                            parent
-
-                        text:
-                            "󰒭"
-
-                        font.family:
-                            "Symbols Nerd Font"
-
-                        font.pixelSize:
-                            Appearance.iconSize + 2
-
-                        color:
-                            nextMouse.containsMouse
-                                ? Colors.green
-                                : Colors.text
-
-                        scale:
-                            nextMouse.containsMouse
-                                ? 1.15
-                                : 1.0
-
-                        Behavior on color {
-                            ColorAnimation {
-                                duration: 150
-                            }
-                        }
-
-                        Behavior on scale {
-                            NumberAnimation {
-                                duration: 200
-                                easing.type: Easing.OutBack
-                                easing.overshoot: 1.4
-                            }
-                        }
-                    }
-
-                    MouseArea {
-                        id: nextMouse
-
-                        anchors.fill:
-                            parent
-
-                        hoverEnabled:
-                            true
-
-                        onClicked: {
-                            if (
-                                root.player
-                                && root.player.canGoNext
-                            ) {
-                                root.player.next()
-                            }
-                        }
-                    }
-                }
-            }
+            color: Colors.base
         }
     }
 
-    // ─────────────────────────────────────────
+    // ═════════════════════════════════════════
     // Compact interaction
-    // ─────────────────────────────────────────
+    // ═════════════════════════════════════════
 
     MouseArea {
-        id: mouseArea
+        id: compactMouse
 
-        z: 3
+        z: 20
+        visible: !root.expanded
+        enabled: !root.expanded
+        anchors.fill: parent
+        hoverEnabled: true
 
-        visible:
-            !root.expanded
-
-        enabled:
-            !root.expanded
-
-        anchors.fill:
-            parent
-
-        hoverEnabled:
-            true
+        onExited: {
+            root.suppressHover = false
+        }
 
         onClicked: {
-            if (root.hasPlayer)
-                root.open()
+            if (!music.hasPlayer)
+                return
+
+            root.suppressHover = false
+            root.open()
         }
     }
 
-    // ─────────────────────────────────────────
-    // Animation timing
-    // ─────────────────────────────────────────
+    // ═════════════════════════════════════════
+    // Opening
+    // ═════════════════════════════════════════
 
     Timer {
         id: contentDelay
-
-        interval:
-            280
-
-        repeat:
-            false
+        interval: 210
+        repeat: false
 
         onTriggered: {
-            root.contentVisible = true
+            expandedContent.opacity = 1.0
         }
     }
 
     Timer {
-        id: collapseDelay
-
-        interval:
-            200
-
-        repeat:
-            false
+        id: focusDelay
+        interval: 50
+        repeat: false
 
         onTriggered: {
-            root.expanded = false
+            root.forceActiveFocus()
+        }
+    }
+
+    // ═════════════════════════════════════════
+    // Close choreography
+    // ═════════════════════════════════════════
+
+    SequentialAnimation {
+        id: closeAnimation
+
+        NumberAnimation {
+            target: expandedContent
+            property: "opacity"
+            to: 0.0
+            duration: 90
+            easing.type: Easing.OutCubic
+        }
+
+        ParallelAnimation {
+            NumberAnimation {
+                target: root
+                property: "closeFillTop"
+                from: root.expandedHeaderHeight
+                to: root.expandedEdgeThickness
+                duration: 260
+                easing.type: Easing.InOutCubic
+            }
+
+            SequentialAnimation {
+                NumberAnimation {
+                    target: root
+                    property: "closeBounceScale"
+                    from: 1.0
+                    to: 0.965
+                    duration: 70
+                    easing.type: Easing.InCubic
+                }
+
+                NumberAnimation {
+                    target: root
+                    property: "closeBounceScale"
+                    from: 0.965
+                    to: 1.075
+                    duration: 190
+                    easing.type: Easing.OutBack
+                    easing.overshoot: 1.45
+                }
+            }
+        }
+
+        ScriptAction {
+            script: {
+                root.collapseBase = true
+            }
+        }
+
+        ParallelAnimation {
+            NumberAnimation {
+                target: root
+                property: "closeBounceScale"
+                from: 1.075
+                to: 1.0
+                duration: 280
+                easing.type: Easing.OutCubic
+            }
+
+            SequentialAnimation {
+                ScriptAction {
+                    script: {
+                        root.shrinking = true
+                    }
+                }
+
+                PauseAnimation { duration: 280 }
+            }
+        }
+
+        ScriptAction {
+            script: {
+                root.suppressHover = true
+                root.expanded = false
+                root.closing = false
+                root.shrinking = false
+                root.collapseBase = true
+                root.closeFillTop = root.expandedHeaderHeight
+                root.closeBounceScale = 1.0
+                expandedContent.opacity = 0.0
+            }
         }
     }
 }

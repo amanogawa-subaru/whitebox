@@ -8,8 +8,10 @@ Item {
     id: root
 
     signal closeRequested()
+    signal lockRequested()
 
-    implicitHeight: 82 * Appearance.scale
+    implicitHeight:
+        82 * Appearance.scale
 
     function run(command) {
         actionProcess.command = [
@@ -18,7 +20,8 @@ Item {
             command
         ]
 
-        actionProcess.running = true
+        actionProcess.running =
+            true
     }
 
     Process {
@@ -26,8 +29,11 @@ Item {
     }
 
     Row {
-        anchors.fill: parent
-        spacing: 8 * Appearance.scale
+        anchors.fill:
+            parent
+
+        spacing:
+            8 * Appearance.scale
 
         Repeater {
             model: [
@@ -35,7 +41,7 @@ Item {
                     label: "Lock",
                     icon: "󰌾",
                     accent: Colors.blue,
-                    command: "hyprlock"
+                    command: ""
                 },
                 {
                     label: "Sleep",
@@ -66,18 +72,22 @@ Item {
             delegate: Rectangle {
                 required property var modelData
 
-                width: (
-                    parent.width
-                    - parent.spacing * 4
-                ) / 5
+                width:
+                    (
+                        parent.width
+                        - parent.spacing * 4
+                    ) / 5
 
-                height: parent.height
+                height:
+                    parent.height
 
-                radius: Appearance.controlRadius
+                radius:
+                    Appearance.controlRadius
 
-                color: actionMouse.containsMouse
-                    ? modelData.accent
-                    : Colors.surface0
+                color:
+                    actionMouse.containsMouse
+                        ? modelData.accent
+                        : Colors.surface0
 
                 border.width:
                     Appearance.borderWidth / 2
@@ -94,26 +104,34 @@ Item {
 
                 Behavior on color {
                     ColorAnimation {
-                        duration: 150
+                        duration:
+                            150
                     }
                 }
 
                 Behavior on border.color {
                     ColorAnimation {
-                        duration: 150
+                        duration:
+                            150
                     }
                 }
 
                 Behavior on scale {
                     NumberAnimation {
-                        duration: 220
-                        easing.type: Easing.OutBack
-                        easing.overshoot: 1.4
+                        duration:
+                            220
+
+                        easing.type:
+                            Easing.OutBack
+
+                        easing.overshoot:
+                            1.4
                     }
                 }
 
                 Column {
-                    anchors.centerIn: parent
+                    anchors.centerIn:
+                        parent
 
                     spacing:
                         5 * Appearance.scale
@@ -138,7 +156,8 @@ Item {
 
                         Behavior on color {
                             ColorAnimation {
-                                duration: 150
+                                duration:
+                                    150
                             }
                         }
                     }
@@ -160,7 +179,8 @@ Item {
 
                         Behavior on color {
                             ColorAnimation {
-                                duration: 150
+                                duration:
+                                    150
                             }
                         }
                     }
@@ -169,12 +189,37 @@ Item {
                 MouseArea {
                     id: actionMouse
 
-                    anchors.fill: parent
-                    hoverEnabled: true
+                    anchors.fill:
+                        parent
+
+                    hoverEnabled:
+                        true
 
                     onClicked: {
+                        /*
+                         * Lock is special:
+                         *
+                         * PowerModule handles the
+                         * collapse first, then starts
+                         * Hyprlock after the animation
+                         * has finished.
+                         */
+                        if (modelData.label === "Lock") {
+                            root.lockRequested()
+                            return
+                        }
+
+                        /*
+                         * Everything else preserves
+                         * the existing behavior:
+                         *
+                         * close the Control Center,
+                         * then execute the action.
+                         */
                         root.closeRequested()
-                        root.run(modelData.command)
+                        root.run(
+                            modelData.command
+                        )
                     }
                 }
             }

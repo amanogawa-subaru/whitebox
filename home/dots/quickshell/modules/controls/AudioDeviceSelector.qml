@@ -7,86 +7,97 @@ import "../../Config"
 Item {
     id: root
 
-    property string deviceType: "sink"
-    property color accentColor: Colors.pink
+    property string deviceType:
+        "sink"
+
+    property color accentColor:
+        Colors.pink
 
     property var devices: []
-    property int selectedId: -1
 
-    property string selectedName:
-        root.deviceType === "source"
-            ? "No input device"
-            : "No output device"
+    property int selectedId:
+        -1
 
-    property bool expanded: false
+    property bool expanded:
+        false
 
-    // ─────────────────────────────────────────
-    // Animated dropdown geometry
-    // ─────────────────────────────────────────
+    property bool animating:
+        heightAnimation.running
 
-    /*
-     * Full natural height of the device list.
-     */
-    readonly property real targetDropdownHeight:
+    signal deviceSelected(
+        int id,
+        string name
+    )
+
+    // ═════════════════════════════════════════
+    // Geometry
+    // ═════════════════════════════════════════
+
+    readonly property real targetHeight:
         root.expanded
             ? deviceList.implicitHeight
                 + 8 * Appearance.scale
             : 0
 
-    /*
-     * This is the ACTUAL animated height.
-     *
-     * PowerModule sees implicitHeight changing
-     * continuously during this animation instead
-     * of receiving one giant instantaneous jump.
-     */
-    property real dropdownHeight: 0
-
-    Behavior on dropdownHeight {
-        NumberAnimation {
-            duration: 220
-            easing.type: Easing.OutCubic
-        }
-    }
-
-    onTargetDropdownHeightChanged: {
-        root.dropdownHeight =
-            root.targetDropdownHeight
-    }
-
-    signal deviceSelected(int id, string name)
-    signal aboutToOpen()
+    property real animatedHeight:
+        0
 
     implicitWidth:
         280 * Appearance.scale
 
     implicitHeight:
-        selectorButton.height
-        + root.dropdownHeight
+        root.animatedHeight
 
-    // ─────────────────────────────────────────
-    // Functions
-    // ─────────────────────────────────────────
+    height:
+        root.animatedHeight
+
+    clip:
+        true
+
+    Behavior on animatedHeight {
+        NumberAnimation {
+            id: heightAnimation
+
+            duration:
+                280
+
+            easing.type:
+                Easing.InOutCubic
+        }
+    }
+
+    onTargetHeightChanged: {
+        root.animatedHeight =
+            root.targetHeight
+    }
+
+    // ═════════════════════════════════════════
+    // Public API
+    // ═════════════════════════════════════════
 
     function refresh() {
-        if (!statusProcess.running)
-            statusProcess.running = true
+        if (!statusProcess.running) {
+            statusProcess.running =
+                true
+        }
+    }
+
+    function open() {
+        root.refresh()
+
+        root.expanded =
+            true
     }
 
     function close() {
-        root.expanded = false
+        root.expanded =
+            false
     }
 
-    function toggleDropdown() {
-        if (!root.expanded) {
-            root.aboutToOpen()
-            root.refresh()
-        }
-
-        root.expanded = !root.expanded
-    }
-
-    function selectDevice(id, name) {
+    function selectDevice(
+        id,
+        name
+    ) {
         if (selectProcess.running)
             return
 
@@ -96,18 +107,24 @@ Item {
             id.toString()
         ]
 
-        selectProcess.running = true
+        selectProcess.running =
+            true
 
-        root.selectedId = id
-        root.selectedName = name
-        root.expanded = false
+        root.selectedId =
+            id
 
-        root.deviceSelected(id, name)
+        root.expanded =
+            false
+
+        root.deviceSelected(
+            id,
+            name
+        )
     }
 
-    // ─────────────────────────────────────────
-    // Read PipeWire devices
-    // ─────────────────────────────────────────
+    // ═════════════════════════════════════════
+    // wpctl
+    // ═════════════════════════════════════════
 
     Process {
         id: statusProcess
@@ -119,27 +136,39 @@ Item {
 
         stdout: StdioCollector {
             onStreamFinished: {
-                const lines = text.split("\n")
+                const lines =
+                    text.split("\n")
 
                 const wantedSection =
                     root.deviceType === "source"
                         ? "Sources:"
                         : "Sinks:"
 
-                let insideSection = false
-                let foundDevices = []
+                let insideSection =
+                    false
 
-                let currentId = -1
-                let currentName = ""
+                let foundDevices =
+                    []
 
-                for (let i = 0; i < lines.length; i++) {
-                    const line = lines[i]
+                let currentId =
+                    -1
+
+                for (
+                    let i = 0;
+                    i < lines.length;
+                    ++i
+                ) {
+                    const line =
+                        lines[i]
 
                     if (
-                        line.indexOf(wantedSection)
-                        !== -1
+                        line.indexOf(
+                            wantedSection
+                        ) !== -1
                     ) {
-                        insideSection = true
+                        insideSection =
+                            true
+
                         continue
                     }
 
@@ -161,57 +190,47 @@ Item {
                         break
                     }
 
-                    const match = line.match(
-                        /(\*)?\s*(\d+)\.\s+(.+?)(?:\s+\[.*\])?$/
-                    )
+                    const match =
+                        line.match(
+                            /(\*)?\s*(\d+)\.\s+(.+?)(?:\s+\[.*\])?$/
+                        )
 
                     if (!match)
+                        continue
+
+                    const id =
+                        parseInt(match[2])
+
+                    if (isNaN(id))
                         continue
 
                     const isDefault =
                         match[1] === "*"
 
-                    const id =
-                        parseInt(match[2])
-
-                    const name =
-                        match[3].trim()
-
-                    if (isNaN(id))
-                        continue
-
                     foundDevices.push({
                         id: id,
-                        name: name,
+                        name: match[3].trim(),
                         isDefault: isDefault
                     })
 
-                    if (isDefault) {
+                    if (isDefault)
                         currentId = id
-                        currentName = name
-                    }
                 }
 
-                root.devices = foundDevices
+                root.devices =
+                    foundDevices
 
                 if (currentId !== -1) {
-                    root.selectedId = currentId
-                    root.selectedName = currentName
+                    root.selectedId =
+                        currentId
                 } else if (
                     foundDevices.length > 0
                 ) {
                     root.selectedId =
                         foundDevices[0].id
-
-                    root.selectedName =
-                        foundDevices[0].name
                 } else {
-                    root.selectedId = -1
-
-                    root.selectedName =
-                        root.deviceType === "source"
-                            ? "No input device"
-                            : "No output device"
+                    root.selectedId =
+                        -1
                 }
             }
         }
@@ -229,355 +248,181 @@ Item {
     Timer {
         id: refreshDelay
 
-        interval: 150
-        repeat: false
+        interval:
+            150
 
-        onTriggered: {
+        repeat:
+            false
+
+        onTriggered:
             root.refresh()
-        }
     }
 
-    Component.onCompleted: {
+    Component.onCompleted:
         root.refresh()
-    }
 
-    // ─────────────────────────────────────────
-    // Selector button
-    // ─────────────────────────────────────────
+    // ═════════════════════════════════════════
+    // Device list
+    // ═════════════════════════════════════════
 
-    Rectangle {
-        id: selectorButton
+    Column {
+        id: deviceList
 
-        anchors {
-            left: parent.left
-            right: parent.right
-            top: parent.top
-        }
+        width:
+            parent.width
 
-        height:
-            36 * Appearance.scale
+        spacing:
+            4 * Appearance.scale
 
-        radius:
-            Appearance.controlRadius
+        opacity:
+            root.expanded
+                ? 1.0
+                : 0.0
 
-        color:
-            selectorMouse.containsMouse
-                ? Colors.surface1
-                : Colors.surface0
-
-        border.width:
-            Appearance.borderWidth
-
-        border.color:
-            selectorMouse.containsMouse
-                ? root.accentColor
-                : Colors.surface1
-
-        Behavior on color {
-            ColorAnimation {
-                duration: 150
-            }
-        }
-
-        Behavior on border.color {
-            ColorAnimation {
-                duration: 150
-            }
-        }
-
-        scale:
-            selectorMouse.containsMouse
-                ? 1.02
-                : 1.0
-
-        Behavior on scale {
-            NumberAnimation {
-                duration: 200
-                easing.type: Easing.OutBack
-                easing.overshoot: 1.3
-            }
-        }
-
-        Text {
-            anchors {
-                left: parent.left
-                right: arrow.left
-
-                leftMargin:
-                    12 * Appearance.scale
-
-                rightMargin:
-                    8 * Appearance.scale
-
-                verticalCenter:
-                    parent.verticalCenter
-            }
-
-            text:
-                root.selectedName
-
-            color:
-                Colors.text
-
-            font.pixelSize:
-                Appearance.textSize
-
-            elide:
-                Text.ElideRight
-        }
-
-        Text {
-            id: arrow
-
-            anchors {
-                right: parent.right
-
-                rightMargin:
-                    12 * Appearance.scale
-
-                verticalCenter:
-                    parent.verticalCenter
-            }
-
-            text:
+        transform: Translate {
+            y:
                 root.expanded
-                    ? "▴"
-                    : "▾"
+                    ? 0
+                    : -4 * Appearance.scale
 
-            color:
-                selectorMouse.containsMouse
-                    ? root.accentColor
-                    : Colors.subtext0
-
-            font.pixelSize:
-                Appearance.textSize
-
-            Behavior on color {
-                ColorAnimation {
-                    duration: 150
-                }
-            }
-        }
-
-        MouseArea {
-            id: selectorMouse
-
-            anchors.fill:
-                parent
-
-            hoverEnabled:
-                true
-
-            onClicked: {
-                root.toggleDropdown()
-            }
-        }
-    }
-
-    // ─────────────────────────────────────────
-    // Animated dropdown viewport
-    // ─────────────────────────────────────────
-
-    Item {
-        id: dropdownViewport
-
-        anchors {
-            left: parent.left
-            right: parent.right
-            top: selectorButton.bottom
-        }
-
-        height:
-            root.dropdownHeight
-
-        clip:
-            true
-
-        Column {
-            id: deviceList
-
-            anchors {
-                left: parent.left
-                right: parent.right
-
-                top: parent.top
-
-                topMargin:
-                    8 * Appearance.scale
-            }
-
-            spacing:
-                4 * Appearance.scale
-
-            /*
-             * Keep the list instantiated during
-             * closing so it can slide smoothly
-             * back into the viewport.
-             */
-            visible:
-                root.dropdownHeight > 0
-
-            opacity:
-                root.expanded
-                    ? 1.0
-                    : 0.0
-
-            Behavior on opacity {
+            Behavior on y {
                 NumberAnimation {
-                    duration: 160
-                    easing.type: Easing.OutCubic
+                    duration:
+                        220
+
+                    easing.type:
+                        Easing.OutCubic
                 }
             }
+        }
 
-            Repeater {
-                model:
-                    root.devices
+        Behavior on opacity {
+            NumberAnimation {
+                duration:
+                    root.expanded
+                        ? 220
+                        : 120
 
-                delegate: Rectangle {
-                    required property var modelData
+                easing.type:
+                    Easing.OutCubic
+            }
+        }
 
-                    width:
-                        deviceList.width
+        Rectangle {
+            width:
+                parent.width
 
-                    height:
-                        34 * Appearance.scale
+            height:
+                1 * Appearance.scale
 
-                    radius:
-                        Appearance.controlRadius
+            color:
+                Colors.surface1
+        }
 
-                    color:
-                        deviceMouse.containsMouse
-                            ? Colors.surface1
-                            : Colors.surface0
+        Repeater {
+            model:
+                root.devices
 
-                    border.width:
-                        Appearance.borderWidth
+            delegate: Rectangle {
+                id: deviceRow
 
-                    border.color: {
-                        if (
-                            deviceMouse.containsMouse
-                        ) {
-                            return root.accentColor
-                        }
+                required property var modelData
 
-                        if (
-                            modelData.id
-                            === root.selectedId
-                        ) {
-                            return root.accentColor
-                        }
+                readonly property bool active:
+                    modelData.id
+                    === root.selectedId
 
+                width:
+                    deviceList.width
+
+                height:
+                    34 * Appearance.scale
+
+                radius:
+                    Appearance.controlRadius
+
+                /*
+                 * IMPORTANT:
+                 *
+                 * No ColorAnimation here.
+                 *
+                 * Going from transparent to
+                 * surface1 through interpolation
+                 * produced the dark intermediate
+                 * flash you were seeing.
+                 */
+                color: {
+                    if (deviceRow.active)
+                        return root.accentColor
+
+                    if (deviceMouse.containsMouse)
                         return Colors.surface1
+
+                    return "transparent"
+                }
+
+                border.width:
+                    0
+
+                Text {
+                    anchors {
+                        left:
+                            parent.left
+
+                        right:
+                            parent.right
+
+                        leftMargin:
+                            12 * Appearance.scale
+
+                        rightMargin:
+                            12 * Appearance.scale
+
+                        verticalCenter:
+                            parent.verticalCenter
                     }
 
-                    scale:
-                        deviceMouse.containsMouse
-                            ? 1.02
-                            : 1.0
+                    text:
+                        modelData.name
+
+                    color: {
+                        if (deviceRow.active)
+                            return Colors.base
+
+                        if (deviceMouse.containsMouse)
+                            return root.accentColor
+
+                        return Colors.text
+                    }
+
+                    font.pixelSize:
+                        Appearance.textSize
+
+                    elide:
+                        Text.ElideRight
 
                     Behavior on color {
                         ColorAnimation {
-                            duration: 150
+                            duration:
+                                130
                         }
                     }
+                }
 
-                    Behavior on border.color {
-                        ColorAnimation {
-                            duration: 150
-                        }
-                    }
+                MouseArea {
+                    id: deviceMouse
 
-                    Behavior on scale {
-                        NumberAnimation {
-                            duration: 200
-                            easing.type:
-                                Easing.OutBack
+                    anchors.fill:
+                        parent
 
-                            easing.overshoot:
-                                1.3
-                        }
-                    }
+                    hoverEnabled:
+                        true
 
-                    Text {
-                        id: checkmark
-
-                        anchors {
-                            left: parent.left
-
-                            leftMargin:
-                                10 * Appearance.scale
-
-                            verticalCenter:
-                                parent.verticalCenter
-                        }
-
-                        text:
-                            modelData.id
-                                === root.selectedId
-                                    ? "✓"
-                                    : ""
-
-                        color:
-                            root.accentColor
-
-                        font.pixelSize:
-                            Appearance.textSize
-                    }
-
-                    Text {
-                        anchors {
-                            left:
-                                checkmark.right
-
-                            right:
-                                parent.right
-
-                            leftMargin:
-                                8 * Appearance.scale
-
-                            rightMargin:
-                                10 * Appearance.scale
-
-                            verticalCenter:
-                                parent.verticalCenter
-                        }
-
-                        text:
+                    onClicked: {
+                        root.selectDevice(
+                            modelData.id,
                             modelData.name
-
-                        color:
-                            deviceMouse.containsMouse
-                                ? root.accentColor
-                                : Colors.text
-
-                        font.pixelSize:
-                            Appearance.textSize
-
-                        elide:
-                            Text.ElideRight
-
-                        Behavior on color {
-                            ColorAnimation {
-                                duration: 150
-                            }
-                        }
-                    }
-
-                    MouseArea {
-                        id: deviceMouse
-
-                        anchors.fill:
-                            parent
-
-                        hoverEnabled:
-                            true
-
-                        onClicked: {
-                            root.selectDevice(
-                                modelData.id,
-                                modelData.name
-                            )
-                        }
+                        )
                     }
                 }
             }

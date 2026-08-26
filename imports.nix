@@ -1,6 +1,16 @@
 { ... }:
 
+let
+  settings = import ./settings.nix;
+  username = settings.username;
+in
+
 {
+  _module.args = {
+    inherit username;
+  };  	  	
+
+
   imports = [
     ./modules/system.nix
     ./modules/desktop.nix

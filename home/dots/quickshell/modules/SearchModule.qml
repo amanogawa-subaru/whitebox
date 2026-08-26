@@ -6,45 +6,73 @@ import "../Config"
 Item {
     id: root
 
-    property bool hovered: mouseArea.containsMouse
+    // ─────────────────────────────────────────
+    // State
+    // ─────────────────────────────────────────
+
+    property bool suppressHover: false
+
+    property bool hovered:
+        compactMouse.containsMouse
+        && !root.suppressHover
+
     property bool expanded: false
-    property bool contentVisible: false
+    property bool closing: false
+    property bool shrinking: false
 
     /*
-     * false = mouse controls selection
-     * true  = keyboard controls selection
+     * Once the closing wipe has completed,
+     * keep the underlying shell base-colored.
+     *
+     * This prevents teal from being exposed
+     * during/after the geometry collapse.
      */
-    property bool keyboardNavigation: false
+    property bool collapseBase: false
 
-    property real contentWidth:
+    // ─────────────────────────────────────────
+    // Design
+    // ─────────────────────────────────────────
+
+    property color accentColor:
+        Colors.teal
+
+    property real expandedHeaderHeight:
+        48 * Appearance.scale
+
+    property real expandedEdgeThickness:
+        Appearance.borderWidth
+
+    property real expandedWidth:
         Appearance.searchWidth
+        + 40 * Appearance.scale
+
+    property real closeFillTop:
+        root.expandedHeaderHeight
+
+    property real closeBounceScale:
+        1.0
+
+    // ─────────────────────────────────────────
+    // Expanded height
+    // ─────────────────────────────────────────
 
     property real expandedHeight: {
-        const headerHeight =
-            Appearance.moduleHeight
+        const rowHeight =
+            Appearance.appRowHeight
+            + 4 * Appearance.scale
 
         const listHeight =
             filteredApps.values.length
-            * (
-                Appearance.appRowHeight
-                + 4 * Appearance.scale
-            )
+            * rowHeight
 
-        const cardPadding =
-            24 * Appearance.scale
-
-        const outerPadding =
-            24 * Appearance.scale
-
-        const spacing =
-            12 * Appearance.scale
+        const resultsPadding =
+            16 * Appearance.scale
 
         const wantedHeight =
-            headerHeight
-            + spacing
+            root.expandedHeaderHeight
             + listHeight
-            + cardPadding
-            + outerPadding
+            + resultsPadding
+            + root.expandedEdgeThickness
 
         return Math.max(
             Appearance.searchEmptyHeight,
@@ -60,24 +88,56 @@ Item {
     // ─────────────────────────────────────────
 
     function open() {
-        root.keyboardNavigation = false
+        closeAnimation.stop()
 
-        root.expanded = true
-        root.contentVisible = false
+        root.suppressHover = false
+        root.closing = false
+        root.shrinking = false
+        root.collapseBase = false
+
+        root.closeFillTop =
+            root.expandedHeaderHeight
+
+        root.closeBounceScale =
+            1.0
+
+        resultsContent.opacity =
+            0.0
+
+        root.expanded =
+            true
 
         contentDelay.restart()
         focusDelay.restart()
     }
 
     function close() {
-        if (!root.expanded)
+        if (
+            !root.expanded
+            || root.closing
+        ) {
             return
+        }
 
         contentDelay.stop()
         focusDelay.stop()
 
-        root.contentVisible = false
-        collapseDelay.restart()
+        root.closing =
+            true
+
+        root.shrinking =
+            false
+
+        root.collapseBase =
+            false
+
+        root.closeFillTop =
+            root.expandedHeaderHeight
+
+        root.closeBounceScale =
+            1.0
+
+        closeAnimation.restart()
     }
 
     function toggle() {
@@ -96,14 +156,17 @@ Item {
     // Geometry
     // ─────────────────────────────────────────
 
-    width: root.expanded
-        ? Appearance.searchWidth
-            + 40 * Appearance.scale
-        : Appearance.moduleHeight
+    width:
+        root.expanded
+        && !root.shrinking
+            ? root.expandedWidth
+            : Appearance.moduleHeight
 
-    height: root.expanded
-        ? root.expandedHeight
-        : Appearance.moduleHeight
+    height:
+        root.expanded
+        && !root.shrinking
+            ? root.expandedHeight
+            : Appearance.moduleHeight
 
     Behavior on width {
         NumberAnimation {
@@ -119,230 +182,323 @@ Item {
         }
     }
 
-    // ─────────────────────────────────────────
-    // Outer shell
-    // ─────────────────────────────────────────
-
-    Rectangle {
-        id: background
-
-        anchors.fill: parent
-
-        radius: Appearance.moduleRadius
-
-        color: Colors.base
-
-        border.width: Appearance.borderWidth
-        border.color: Colors.teal
-
-        /*
-         * Preserve our compact module bounce.
-         */
-        scale:
-            root.hovered && !root.expanded
-                ? 1.09
-                : 1.0
-
-        transformOrigin: Item.Center
-
-        Behavior on scale {
-            NumberAnimation {
-                duration: 300
-                easing.type: Easing.OutBack
-                easing.overshoot: 1.9
-            }
-        }
-    }
-
-    // ─────────────────────────────────────────
-    // Compact Search button
-    // ─────────────────────────────────────────
+    // ═════════════════════════════════════════
+    // Entire visual module
+    // ═════════════════════════════════════════
 
     Item {
-        id: compactButton
+        id: visualRoot
 
-        visible: !root.expanded
+        anchors.fill:
+            parent
 
-        width: Appearance.moduleHeight
-        height: Appearance.moduleHeight
+        scale: {
+            if (root.closing)
+                return root.closeBounceScale
 
-        anchors {
-            left: parent.left
-            top: parent.top
-        }
-
-        Text {
-            anchors.centerIn: parent
-
-            text: "󰍉"
-
-            font.family: "Symbols Nerd Font"
-            font.pixelSize: Appearance.iconSize
-
-            color: Colors.text
-        }
-    }
-
-    // ─────────────────────────────────────────
-    // Expanded content
-    // ─────────────────────────────────────────
-
-    Column {
-        id: content
-
-        z: 2
-
-        width: root.contentWidth
-
-        anchors {
-            top: parent.top
-            horizontalCenter: parent.horizontalCenter
-
-            topMargin:
-                12 * Appearance.scale
-        }
-
-        spacing:
-            12 * Appearance.scale
-
-        visible: opacity > 0
-
-        opacity:
-            root.contentVisible
-                ? 1.0
-                : 0.0
-
-        transform: Translate {
-            y:
-                root.contentVisible
-                    ? 0
-                    : 8
-
-            Behavior on y {
-                NumberAnimation {
-                    duration: 200
-                    easing.type: Easing.OutCubic
-                }
+            if (
+                root.hovered
+                && !root.expanded
+            ) {
+                return 1.09
             }
+
+            return 1.0
         }
 
-        Behavior on opacity {
+        transformOrigin:
+            Item.Center
+
+        Behavior on scale {
+            enabled:
+                !root.closing
+
             NumberAnimation {
-                duration: 200
-                easing.type: Easing.OutCubic
+                duration: 300
+
+                easing.type:
+                    Easing.OutBack
+
+                easing.overshoot:
+                    1.9
             }
         }
 
         // ─────────────────────────────────────
-        // Search field card
+        // Outer shell
         // ─────────────────────────────────────
 
         Rectangle {
-            id: searchCard
+            id: outerShell
 
-            width: parent.width
-            height: Appearance.moduleHeight
+            anchors.fill:
+                parent
 
             radius:
-                Appearance.controlRadius
+                Appearance.moduleRadius
 
-            color:
-                Colors.surface0
-
-            border.width:
-                Appearance.borderWidth / 2
-
-            border.color:
-                searchInput.activeFocus
-                    ? Colors.teal
-                    : Colors.surface1
-
-            Behavior on border.color {
-                ColorAnimation {
-                    duration: 150
+            color: {
+                /*
+                 * Genuine compact hover must win.
+                 */
+                if (
+                    root.hovered
+                    && !root.expanded
+                ) {
+                    return root.accentColor
                 }
+
+                /*
+                 * Keep the compact/collapsing shell
+                 * base-colored after the wipe.
+                 */
+                if (root.collapseBase)
+                    return Colors.base
+
+                if (root.expanded)
+                    return root.accentColor
+
+                return Colors.base
             }
 
-            Item {
-                id: searchIconSlot
+            border.width:
+                Appearance.borderWidth
 
-                width:
-                    Appearance.moduleHeight
+            border.color:
+                root.accentColor
 
-                height:
-                    parent.height
+            Behavior on color {
+                ColorAnimation {
+                    duration: 160
+                }
+            }
+        }
 
-                anchors {
-                    left: parent.left
-                    top: parent.top
+        // ─────────────────────────────────────
+        // Persistent search icon
+        // ─────────────────────────────────────
+
+        Item {
+            id: searchIconSlot
+
+            z: 6
+
+            width:
+                Appearance.moduleHeight
+
+            height:
+                Appearance.moduleHeight
+
+            anchors {
+                left:
+                    parent.left
+
+                top:
+                    parent.top
+            }
+
+            Text {
+                anchors.centerIn:
+                    parent
+
+                text:
+                    "󰍉"
+
+                font.family:
+                    "Symbols Nerd Font"
+
+                font.pixelSize:
+                    Appearance.iconSize
+
+                color: {
+                    /*
+                     * Compact hover:
+                     *
+                     * teal background -> base icon
+                     */
+                    if (
+                        root.hovered
+                        && !root.expanded
+                    ) {
+                        return Colors.base
+                    }
+
+                    /*
+                     * Closing / compact idle:
+                     *
+                     * base background -> teal icon
+                     */
+                    if (
+                        root.closing
+                        || root.collapseBase
+                    ) {
+                        return root.accentColor
+                    }
+
+                    /*
+                     * Expanded teal header:
+                     *
+                     * base icon
+                     */
+                    if (root.expanded)
+                        return Colors.base
+
+                    /*
+                     * Normal compact idle:
+                     *
+                     * teal icon
+                     */
+                    return root.accentColor
                 }
 
-                Text {
-                    anchors.centerIn: parent
+                scale:
+                    root.hovered
+                    && !root.expanded
+                        ? 1.05
+                        : 1.0
 
-                    text: "󰍉"
+                Behavior on color {
+                    ColorAnimation {
+                        duration: 150
+                    }
+                }
 
-                    font.family:
-                        "Symbols Nerd Font"
+                Behavior on scale {
+                    NumberAnimation {
+                        duration: 200
 
-                    font.pixelSize:
-                        Appearance.iconSize
+                        easing.type:
+                            Easing.OutBack
 
-                    color:
-                        Colors.teal
+                        easing.overshoot:
+                            1.3
+                    }
+                }
+            }
+        }
+
+        // ─────────────────────────────────────
+        // Expanded header
+        // ─────────────────────────────────────
+
+        Item {
+            id: expandedHeader
+
+            z: 5
+
+            visible:
+                root.expanded
+
+            anchors {
+                left:
+                    parent.left
+
+                right:
+                    parent.right
+
+                top:
+                    parent.top
+            }
+
+            height:
+                root.expandedHeaderHeight
+
+            opacity:
+                root.closing
+                    ? 0.0
+                    : 1.0
+
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: 90
+                    easing.type: Easing.OutCubic
                 }
             }
 
             TextInput {
                 id: searchInput
 
-                anchors {
-                    left:
-                        searchIconSlot.right
+                x:
+                    Appearance.moduleHeight
+                    + 2 * Appearance.scale
 
-                    right:
-                        parent.right
+                y:
+                    0
 
-                    leftMargin:
-                        4 * Appearance.scale
+                width:
+                    Math.max(
+                        0,
+                        expandedHeader.width
+                        - x
+                        - 20 * Appearance.scale
+                    )
 
-                    rightMargin:
-                        14 * Appearance.scale
+                height:
+                    expandedHeader.height
 
-                    verticalCenter:
-                        parent.verticalCenter
-                }
+                horizontalAlignment:
+                    Text.AlignLeft
+
+                verticalAlignment:
+                    Text.AlignVCenter
+
+                LayoutMirroring.enabled:
+                    false
+
+                LayoutMirroring.childrenInherit:
+                    false
 
                 color:
-                    Colors.text
+                    Colors.base
 
                 font.pixelSize:
-                    Appearance.textSize
+                    Appearance.textSize + 2
 
-                clip: true
+                clip:
+                    true
+
+                selectionColor:
+                    Colors.base
+
+                selectedTextColor:
+                    root.accentColor
+
+                // ─────────────────────────────
+                // Placeholder
+                // ─────────────────────────────
 
                 Text {
-                    anchors.fill: parent
+                    anchors.fill:
+                        parent
 
                     visible:
                         searchInput.text.length === 0
 
                     text:
-                        "Search applications..."
+                        "search"
 
-                    color:
-                        Colors.overlay0
-
-                    font.pixelSize:
-                        Appearance.textSize
+                    horizontalAlignment:
+                        Text.AlignLeft
 
                     verticalAlignment:
                         Text.AlignVCenter
+
+                    color:
+                        Colors.base
+
+                    opacity:
+                        0.82
+
+                    font.pixelSize:
+                        Appearance.textSize + 2
+
+                    LayoutMirroring.enabled:
+                        false
                 }
 
                 onTextChanged: {
                     appList.currentIndex = 0
-                    root.keyboardNavigation = false
+
                 }
 
                 // ─────────────────────────────
@@ -350,8 +506,6 @@ Item {
                 // ─────────────────────────────
 
                 Keys.onDownPressed: event => {
-                    root.keyboardNavigation = true
-
                     if (appList.count > 0) {
                         appList.currentIndex =
                             Math.min(
@@ -369,8 +523,6 @@ Item {
                 }
 
                 Keys.onUpPressed: event => {
-                    root.keyboardNavigation = true
-
                     if (appList.count > 0) {
                         appList.currentIndex =
                             Math.max(
@@ -401,8 +553,23 @@ Item {
                     event.accepted = true
                 }
 
+                Keys.onEnterPressed: event => {
+                    if (appList.count > 0) {
+                        filteredApps
+                            .values[
+                                appList.currentIndex
+                            ]
+                            .execute()
+
+                        root.close()
+                    }
+
+                    event.accepted = true
+                }
+
                 Keys.onEscapePressed: event => {
                     root.close()
+
                     event.accepted = true
                 }
             }
@@ -415,212 +582,345 @@ Item {
         Rectangle {
             id: resultsCard
 
+            z: 3
+
+            visible:
+                root.expanded
+
+            x:
+                root.expandedEdgeThickness
+
+            y:
+                root.expandedHeaderHeight
+
             width:
-                parent.width
+                Math.max(
+                    0,
+                    visualRoot.width
+                    - root.expandedEdgeThickness * 2
+                )
 
-            height: Math.max(
-                48 * Appearance.scale,
-
-                root.expandedHeight
-                    - searchCard.height
-                    - content.spacing
-                    - 24 * Appearance.scale
-            )
+            height:
+                Math.max(
+                    0,
+                    visualRoot.height
+                    - root.expandedHeaderHeight
+                    - root.expandedEdgeThickness
+                )
 
             radius:
-                Appearance.controlRadius
+                Math.max(
+                    0,
+                    Appearance.moduleRadius
+                    - root.expandedEdgeThickness
+                )
 
             color:
-                Colors.surface0
+                Colors.base
 
-            clip: true
+            clip:
+                true
 
-            ListView {
-                id: appList
+            Item {
+                id: resultsContent
 
-                anchors {
-                    fill: parent
+                anchors.fill:
+                    parent
 
-                    margins:
-                        8 * Appearance.scale
+                opacity:
+                    0.0
+
+                Behavior on opacity {
+                    NumberAnimation {
+                        duration: 160
+                        easing.type: Easing.OutCubic
+                    }
                 }
 
-                clip: true
+                ListView {
+                    id: appList
 
-                spacing:
-                    4 * Appearance.scale
+                    anchors {
+                        fill:
+                            parent
 
-                currentIndex: 0
-
-                model:
-                    filteredApps
-
-                /*
-                 * We draw our own highlight instead
-                 * of coloring every delegate.
-                 */
-                highlightFollowsCurrentItem: true
-
-                highlightMoveDuration: 160
-
-                highlightMoveVelocity: -1
-
-                highlight: Rectangle {
-                    radius:
-                        Appearance.controlRadius
-
-                    color:
-                        Colors.teal
-                }
-
-                delegate: Item {
-                    required property var modelData
-                    required property int index
-
-                    width:
-                        appList.width
-
-                    height:
-                        Appearance.appRowHeight
-
-                    /*
-                     * This is the row currently underneath
-                     * the single sliding highlight.
-                     */
-                    property bool selected:
-                        ListView.isCurrentItem
-
-                    // ─────────────────────────
-                    // App icon
-                    // ─────────────────────────
-
-                    Image {
-                        id: appIcon
-
-                        anchors {
-                            left:
-                                parent.left
-
-                            leftMargin:
-                                10 * Appearance.scale
-
-                            verticalCenter:
-                                parent.verticalCenter
-                        }
-
-                        width:
-                            Appearance.appIconSize
-
-                        height:
-                            Appearance.appIconSize
-
-                        source:
-                            Quickshell.iconPath(
-                                modelData.icon
-                            )
-
-                        fillMode:
-                            Image.PreserveAspectFit
+                        margins:
+                            10 * Appearance.scale
                     }
 
-                    // ─────────────────────────
-                    // App name
-                    // ─────────────────────────
+                    clip:
+                        true
 
-                    Text {
-                        anchors {
-                            left:
-                                appIcon.right
+                    spacing:
+                        4 * Appearance.scale
 
-                            right:
-                                parent.right
+                    currentIndex:
+                        0
 
-                            leftMargin:
-                                10 * Appearance.scale
+                    model:
+                        filteredApps
 
-                            rightMargin:
-                                10 * Appearance.scale
+                    highlightFollowsCurrentItem:
+                        true
 
-                            verticalCenter:
-                                parent.verticalCenter
+                    highlightMoveDuration:
+                        160
+
+                    highlightMoveVelocity:
+                        -1
+
+                    highlight: Rectangle {
+                        radius:
+                            Appearance.controlRadius
+
+                        color:
+                            root.accentColor
+                    }
+
+                    delegate: Item {
+                        id: appDelegate
+
+                        required property var modelData
+                        required property int index
+
+                        width:
+                            appList.width
+
+                        height:
+                            Appearance.appRowHeight
+
+                        property bool selected:
+                            ListView.isCurrentItem
+
+                        Image {
+                            id: appIcon
+
+                            anchors {
+                                left:
+                                    parent.left
+
+                                leftMargin:
+                                    10 * Appearance.scale
+
+                                verticalCenter:
+                                    parent.verticalCenter
+                            }
+
+                            width:
+                                Appearance.appIconSize
+
+                            height:
+                                Appearance.appIconSize
+
+                            source: {
+                                // Prefer the icon explicitly supplied
+                                // by the desktop entry.
+                                if (
+                                    modelData.icon
+                                    && modelData.icon.length > 0
+                                ) {
+                                    return Quickshell.iconPath(
+                                        modelData.icon,
+                                        true
+                                    )
+                                }
+
+                                // Some desktop entries expose no icon
+                                // through DesktopEntries. Try their ID
+                                // as the freedesktop icon name instead.
+                                if (
+                                    modelData.id
+                                    && modelData.id.length > 0
+                                ) {
+                                    return Quickshell.iconPath(
+                                        modelData.id,
+                                        true
+                                    )
+                                }
+
+                                return ""
+                            }
+
+                            fillMode:
+                                Image.PreserveAspectFit
+
+                            smooth:
+                                true
+
+                            scale:
+                                appMouse.containsMouse
+                                    ? 1.06
+                                    : 1.0
+
+                            Behavior on scale {
+                                NumberAnimation {
+                                    duration: 180
+
+                                    easing.type:
+                                        Easing.OutBack
+
+                                    easing.overshoot:
+                                        1.25
+                                }
+                            }
                         }
 
-                        text:
-                            modelData.name
+                        Text {
+                            anchors {
+                                left:
+                                    appIcon.right
 
-                        /*
-                         * Invert the text when the
-                         * highlight reaches this row.
-                         */
-                        color:
-                            selected
-                                ? Colors.base
-                                : Colors.text
+                                right:
+                                    parent.right
 
-                        font.pixelSize:
-                            Appearance.textSize
+                                leftMargin:
+                                    10 * Appearance.scale
 
-                        elide:
-                            Text.ElideRight
+                                rightMargin:
+                                    10 * Appearance.scale
 
-                        Behavior on color {
-                            ColorAnimation {
-                                duration: 100
+                                verticalCenter:
+                                    parent.verticalCenter
+                            }
+
+                            text:
+                                modelData.name
+
+                            color:
+                                appDelegate.selected
+                                    ? Colors.base
+                                    : Colors.text
+
+                            font.pixelSize:
+                                Appearance.textSize
+
+                            elide:
+                                Text.ElideRight
+
+                            Behavior on color {
+                                ColorAnimation {
+                                    duration: 100
+                                }
+                            }
+                        }
+
+                        MouseArea {
+                            id: appMouse
+
+                            anchors.fill:
+                                parent
+
+                            hoverEnabled:
+                                true
+
+                            onEntered: {
+                                appList.currentIndex =
+                                    index
+                            }
+
+                            onClicked: {
+                                modelData.execute()
+                                root.close()
                             }
                         }
                     }
+                }
 
-                    // ─────────────────────────
-                    // Mouse interaction
-                    // ─────────────────────────
+                Text {
+                    anchors.centerIn:
+                        parent
 
-                    MouseArea {
-                        id: appMouse
+                    visible:
+                        filteredApps.values.length === 0
 
-                        anchors.fill: parent
+                    text:
+                        "No applications found"
 
-                        hoverEnabled: true
+                    color:
+                        Colors.overlay0
 
-                        /*
-                         * Entering another row moves
-                         * currentIndex, which causes the
-                         * same highlight to glide there.
-                         */
-                        onEntered: {
-                            root.keyboardNavigation = false
-
-                            appList.currentIndex =
-                                index
-                        }
-
-                        onClicked: {
-                            modelData.execute()
-                            root.close()
-                        }
-                    }
+                    font.pixelSize:
+                        Appearance.textSize
                 }
             }
+        }
 
-            // ─────────────────────────────────
-            // Empty results
-            // ─────────────────────────────────
+        // ─────────────────────────────────────
+        // Closing base fill
+        // ─────────────────────────────────────
 
-            Text {
-                anchors.centerIn:
-                    parent
+        Rectangle {
+            id: closeFill
 
-                visible:
-                    filteredApps.values.length === 0
+            z: 4
 
-                text:
-                    "No applications found"
+            visible:
+                root.closing
 
-                color:
-                    Colors.overlay0
+            x:
+                root.expandedEdgeThickness
 
-                font.pixelSize:
-                    Appearance.textSize
-            }
+            y:
+                root.closeFillTop
+
+            width:
+                Math.max(
+                    0,
+                    visualRoot.width
+                    - root.expandedEdgeThickness * 2
+                )
+
+            height:
+                Math.max(
+                    0,
+                    visualRoot.height
+                    - root.closeFillTop
+                    - root.expandedEdgeThickness
+                )
+
+            radius:
+                Math.max(
+                    0,
+                    Appearance.moduleRadius
+                    - root.expandedEdgeThickness
+                )
+
+            color:
+                Colors.base
+        }
+    }
+
+    // ═════════════════════════════════════════
+    // Compact interaction
+    // ═════════════════════════════════════════
+
+    MouseArea {
+        id: compactMouse
+
+        z: 20
+
+        visible:
+            !root.expanded
+
+        enabled:
+            !root.expanded
+
+        anchors.fill:
+            parent
+
+        hoverEnabled:
+            true
+
+        onExited: {
+            root.suppressHover =
+                false
+        }
+
+        onClicked: {
+            root.suppressHover =
+                false
+
+            root.open()
         }
     }
 
@@ -652,67 +952,235 @@ Item {
     }
 
     // ─────────────────────────────────────────
-    // Compact interaction
-    // ─────────────────────────────────────────
-
-    MouseArea {
-        id: mouseArea
-
-        z: 3
-
-        visible:
-            !root.expanded
-
-        enabled:
-            !root.expanded
-
-        anchors.fill:
-            parent
-
-        hoverEnabled:
-            true
-
-        onClicked: {
-            root.open()
-        }
-    }
-
-    // ─────────────────────────────────────────
-    // Animation timing
+    // Opening timers
     // ─────────────────────────────────────────
 
     Timer {
         id: contentDelay
 
-        interval: 280
-        repeat: false
+        interval:
+            210
+
+        repeat:
+            false
 
         onTriggered: {
-            root.contentVisible = true
+            resultsContent.opacity =
+                1.0
         }
     }
 
     Timer {
         id: focusDelay
 
-        interval: 320
-        repeat: false
+        interval:
+            290
+
+        repeat:
+            false
 
         onTriggered: {
             searchInput.forceActiveFocus()
         }
     }
 
-    Timer {
-        id: collapseDelay
+    // ═════════════════════════════════════════
+    // Close choreography
+    // ═════════════════════════════════════════
 
-        interval: 200
-        repeat: false
+    SequentialAnimation {
+        id: closeAnimation
 
-        onTriggered: {
-            root.expanded = false
-            root.keyboardNavigation = false
-            searchInput.text = ""
+        // ─────────────────────────────────────
+        // 1. Fade list
+        // ─────────────────────────────────────
+
+        NumberAnimation {
+            target:
+                resultsContent
+
+            property:
+                "opacity"
+
+            to:
+                0.0
+
+            duration:
+                90
+
+            easing.type:
+                Easing.OutCubic
+        }
+
+        // ═════════════════════════════════════
+        // 2. WIPE + BOUNCE TOGETHER
+        // ═════════════════════════════════════
+
+        ParallelAnimation {
+
+            // Base rises through teal header
+
+            NumberAnimation {
+                target:
+                    root
+
+                property:
+                    "closeFillTop"
+
+                from:
+                    root.expandedHeaderHeight
+
+                to:
+                    root.expandedEdgeThickness
+
+                duration:
+                    260
+
+                easing.type:
+                    Easing.InOutCubic
+            }
+
+            // Whole-module bounce
+
+            SequentialAnimation {
+
+                // anticipation squash
+
+                NumberAnimation {
+                    target:
+                        root
+
+                    property:
+                        "closeBounceScale"
+
+                    from:
+                        1.0
+
+                    to:
+                        0.965
+
+                    duration:
+                        70
+
+                    easing.type:
+                        Easing.InCubic
+                }
+
+                // spring outward
+
+                NumberAnimation {
+                    target:
+                        root
+
+                    property:
+                        "closeBounceScale"
+
+                    from:
+                        0.965
+
+                    to:
+                        1.075
+
+                    duration:
+                        190
+
+                    easing.type:
+                        Easing.OutBack
+
+                    easing.overshoot:
+                        1.45
+                }
+            }
+        }
+
+        // Base has now fully taken over.
+
+        ScriptAction {
+            script: {
+                root.collapseBase =
+                    true
+            }
+        }
+
+        // ═════════════════════════════════════
+        // 3. RECOVERY + SHRINK TOGETHER
+        // ═════════════════════════════════════
+
+        ParallelAnimation {
+
+            NumberAnimation {
+                target:
+                    root
+
+                property:
+                    "closeBounceScale"
+
+                from:
+                    1.075
+
+                to:
+                    1.0
+
+                duration:
+                    280
+
+                easing.type:
+                    Easing.OutCubic
+            }
+
+            SequentialAnimation {
+                ScriptAction {
+                    script: {
+                        root.shrinking =
+                            true
+                    }
+                }
+
+                PauseAnimation {
+                    duration:
+                        280
+                }
+            }
+        }
+
+        // ═════════════════════════════════════
+        // 4. Compact state
+        // ═════════════════════════════════════
+
+        ScriptAction {
+            script: {
+                /*
+                 * Don't instantly treat the cursor
+                 * already sitting over Search as a
+                 * fresh hover.
+                 */
+                root.suppressHover =
+                    true
+
+                root.expanded =
+                    false
+
+                root.closing =
+                    false
+
+                root.shrinking =
+                    false
+
+                root.collapseBase =
+                    true
+
+                root.closeFillTop =
+                    root.expandedHeaderHeight
+
+                root.closeBounceScale =
+                    1.0
+
+                resultsContent.opacity =
+                    0.0
+
+                searchInput.text =
+                    ""
+            }
         }
     }
 }

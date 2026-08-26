@@ -3,11 +3,27 @@ import Quickshell.Hyprland
 
 import "../Config"
 
-Rectangle {
+FocusScope {
     id: root
 
+    // ─────────────────────────────────────────
+    // State
+    // ─────────────────────────────────────────
+
+    property bool suppressHover: false
+
     property bool hovered:
-        moduleHover.hovered
+        compactMouse.containsMouse
+        && !root.suppressHover
+
+    property bool expanded: false
+    property bool closing: false
+    property bool shrinking: false
+    property bool collapseBase: false
+
+    // ─────────────────────────────────────────
+    // Workspace data
+    // ─────────────────────────────────────────
 
     property int workspaceCount: 5
 
@@ -34,267 +50,1077 @@ Rectangle {
             )
         )
 
-    width:
-        Appearance.workspaceWidth
+    // ─────────────────────────────────────────
+    // Design
+    // ─────────────────────────────────────────
 
-    height:
-        Appearance.moduleHeight
-
-    radius:
-        Appearance.moduleRadius
-
-    color:
-        Colors.base
-
-    border.width:
-        Appearance.borderWidth
-
-    border.color:
+    property color accentColor:
         Colors.peach
 
+    property real expandedHeaderHeight:
+        48 * Appearance.scale
+
+    property real expandedEdgeThickness:
+        Appearance.borderWidth
+
+    property real expandedWidth:
+        360 * Appearance.scale
+
+    property real expandedHeight:
+        250 * Appearance.scale
+
+    property real closeFillTop:
+        root.expandedHeaderHeight
+
+    property real closeBounceScale:
+        1.0
+
     // ─────────────────────────────────────────
-    // Whole-module hover swell
+    // Helpers
     // ─────────────────────────────────────────
 
-    scale:
-        root.hovered
-            ? 1.09
-            : 1.0
+    function workspaceOccupied(workspaceId) {
+        for (
+            let i = 0;
+            i < Hyprland.workspaces.values.length;
+            i++
+        ) {
+            if (
+                Hyprland.workspaces.values[i].id
+                === workspaceId
+            ) {
+                return true
+            }
+        }
 
-    transformOrigin:
-        Item.Center
+        return false
+    }
 
-    Behavior on scale {
-        NumberAnimation {
-            duration: 300
-            easing.type: Easing.OutBack
-            easing.overshoot: 1.9
+    function switchWorkspace(workspaceId) {
+        Hyprland.dispatch(
+            'hl.dsp.focus({ workspace = "'
+            + workspaceId
+            + '" })'
+        )
+    }
+
+    function switchAndClose(workspaceId) {
+        root.switchWorkspace(workspaceId)
+        root.close()
+    }
+
+    // ─────────────────────────────────────────
+    // Open / Close
+    // ─────────────────────────────────────────
+
+    function open() {
+        closeAnimation.stop()
+
+        root.suppressHover = false
+
+        root.closing = false
+        root.shrinking = false
+        root.collapseBase = false
+
+        root.closeFillTop =
+            root.expandedHeaderHeight
+
+        root.closeBounceScale =
+            1.0
+
+        overviewContent.opacity =
+            0.0
+
+        root.expanded =
+            true
+
+        contentDelay.restart()
+        focusDelay.restart()
+    }
+
+    function close() {
+        if (
+            !root.expanded
+            || root.closing
+        ) {
+            return
+        }
+
+        contentDelay.stop()
+        focusDelay.stop()
+
+        root.closing =
+            true
+
+        root.shrinking =
+            false
+
+        root.collapseBase =
+            false
+
+        root.closeFillTop =
+            root.expandedHeaderHeight
+
+        root.closeBounceScale =
+            1.0
+
+        closeAnimation.restart()
+    }
+
+    function toggle() {
+        if (root.expanded)
+            root.close()
+        else
+            root.open()
+    }
+
+    // ─────────────────────────────────────────
+    // Escape closes
+    // ─────────────────────────────────────────
+
+    Keys.onEscapePressed: event => {
+        if (root.expanded) {
+            root.close()
+            event.accepted = true
         }
     }
 
-    HoverHandler {
-        id: moduleHover
+    // ─────────────────────────────────────────
+    // Geometry
+    // ─────────────────────────────────────────
+
+    width:
+        root.expanded
+        && !root.shrinking
+            ? root.expandedWidth
+            : Appearance.workspaceWidth
+
+    height:
+        root.expanded
+        && !root.shrinking
+            ? root.expandedHeight
+            : Appearance.moduleHeight
+
+    Behavior on width {
+        NumberAnimation {
+            duration: 280
+            easing.type: Easing.OutCubic
+        }
     }
 
-    // ─────────────────────────────────────────
-    // Workspace strip
-    // ─────────────────────────────────────────
+    Behavior on height {
+        NumberAnimation {
+            duration: 280
+            easing.type: Easing.OutCubic
+        }
+    }
+
+    // ═════════════════════════════════════════
+    // Entire visual module
+    // ═════════════════════════════════════════
 
     Item {
-        id: workspaceStrip
+        id: visualRoot
 
-        width:
-            root.workspaceCount
-                * root.workspaceItemSize
-            + (root.workspaceCount - 1)
-                * root.workspaceSpacing
-
-        height:
-            root.workspaceItemSize
-
-        anchors.centerIn:
+        anchors.fill:
             parent
 
+        scale: {
+            if (root.closing)
+                return root.closeBounceScale
+
+            if (
+                root.hovered
+                && !root.expanded
+            ) {
+                return 1.09
+            }
+
+            return 1.0
+        }
+
+        transformOrigin:
+            Item.Center
+
+        Behavior on scale {
+            enabled:
+                !root.closing
+
+            NumberAnimation {
+                duration: 300
+
+                easing.type:
+                    Easing.OutBack
+
+                easing.overshoot:
+                    1.9
+            }
+        }
+
         // ─────────────────────────────────────
-        // Sliding active indicator
+        // Outer shell
         // ─────────────────────────────────────
 
         Rectangle {
-            id: activeIndicator
+            id: outerShell
 
-            z: 2
-
-            visible:
-                root.activeWorkspaceId >= 1
-                && root.activeWorkspaceId
-                    <= root.workspaceCount
-
-            width:
-                root.indicatorSize
-
-            height:
-                root.indicatorSize
+            anchors.fill:
+                parent
 
             radius:
-                width / 2
+                Appearance.moduleRadius
 
-            color:
-                Colors.peach
-
-            y:
-                (
-                    workspaceStrip.height
-                    - height
-                ) / 2
-
-            x:
-                root.activeIndex
-                * (
-                    root.workspaceItemSize
-                    + root.workspaceSpacing
-                )
-                + (
-                    root.workspaceItemSize
-                    - width
-                ) / 2
-
-            Behavior on x {
-                NumberAnimation {
-                    duration: 220
-                    easing.type: Easing.OutBack
-                    easing.overshoot: 1.25
+            color: {
+                if (
+                    root.hovered
+                    && !root.expanded
+                ) {
+                    return root.accentColor
                 }
+
+                if (root.collapseBase)
+                    return Colors.base
+
+                if (root.expanded)
+                    return root.accentColor
+
+                return Colors.base
             }
 
-            /*
-             * Tiny pulse when hovering the
-             * currently active workspace.
-             */
-            scale:
-                activeWorkspaceMouseHover.hovered
-                    ? 1.25
-                    : 1.0
+            border.width:
+                Appearance.borderWidth
 
-            Behavior on scale {
-                NumberAnimation {
-                    duration: 180
-                    easing.type: Easing.OutBack
-                    easing.overshoot: 1.35
+            border.color:
+                root.accentColor
+
+            Behavior on color {
+                ColorAnimation {
+                    duration: 160
                 }
-            }
-
-            HoverHandler {
-                id: activeWorkspaceMouseHover
             }
         }
 
-        // ─────────────────────────────────────
-        // Workspace slots
-        // ─────────────────────────────────────
+        // ═════════════════════════════════════
+        // Persistent workspace strip
+        // ═════════════════════════════════════
 
-        Repeater {
-            model:
+        Item {
+            id: workspaceStrip
+
+            z: 7
+
+            width:
                 root.workspaceCount
+                * root.workspaceItemSize
+                + (
+                    root.workspaceCount - 1
+                )
+                * root.workspaceSpacing
 
-            delegate: Item {
-                id: workspaceItem
+            height:
+                root.workspaceItemSize
 
-                required property int index
+            anchors {
+                left:
+                    parent.left
 
-                property int workspaceId:
-                    index + 1
+                top:
+                    parent.top
 
-                property bool active:
-                    root.activeWorkspaceId
-                        === workspaceId
+                leftMargin:
+                    (
+                        Appearance.workspaceWidth
+                        - width
+                    ) / 2
 
-                property bool occupied: {
-                    for (
-                        let i = 0;
-                        i < Hyprland.workspaces.values.length;
-                        i++
+                topMargin:
+                    (
+                        Appearance.moduleHeight
+                        - height
+                    ) / 2
+            }
+
+            // ─────────────────────────────────
+            // Sliding active indicator
+            // ─────────────────────────────────
+
+            Rectangle {
+                id: activeIndicator
+
+                z:
+                    2
+
+                visible:
+                    root.activeWorkspaceId >= 1
+                    && root.activeWorkspaceId
+                        <= root.workspaceCount
+
+                width:
+                    root.indicatorSize
+
+                height:
+                    root.indicatorSize
+
+                radius:
+                    width / 2
+
+                /*
+                 * COMPACT:
+                 * peach on base
+                 *
+                 * COMPACT HOVER:
+                 * base on peach
+                 *
+                 * EXPANDED:
+                 * base on peach
+                 *
+                 * CLOSING:
+                 * peach on base
+                 */
+                color: {
+                    if (root.closing)
+                        return root.accentColor
+
+                    if (
+                        root.expanded
+                        || root.hovered
                     ) {
-                        if (
-                            Hyprland.workspaces.values[i].id
-                            === workspaceId
-                        ) {
-                            return true
-                        }
+                        return Colors.base
                     }
 
-                    return false
+                    return root.accentColor
                 }
 
+                y:
+                    (
+                        workspaceStrip.height
+                        - height
+                    ) / 2
+
                 x:
-                    index
+                    root.activeIndex
                     * (
                         root.workspaceItemSize
                         + root.workspaceSpacing
                     )
+                    + (
+                        root.workspaceItemSize
+                        - width
+                    ) / 2
 
-                width:
-                    root.workspaceItemSize
+                Behavior on x {
+                    NumberAnimation {
+                        duration: 220
 
-                height:
-                    root.workspaceItemSize
+                        easing.type:
+                            Easing.OutBack
 
-                // ─────────────────────────────
-                // Inactive workspace dot
-                // ─────────────────────────────
+                        easing.overshoot:
+                            1.25
+                    }
+                }
 
-                Rectangle {
-                    id: indicator
+                Behavior on color {
+                    ColorAnimation {
+                        duration: 150
+                    }
+                }
+            }
+
+            // ─────────────────────────────────
+            // Other workspace indicators
+            // ─────────────────────────────────
+
+            Repeater {
+                model:
+                    root.workspaceCount
+
+                delegate: Item {
+                    id: headerWorkspace
+
+                    required property int index
+
+                    property int workspaceId:
+                        index + 1
+
+                    property bool active:
+                        root.activeWorkspaceId
+                            === workspaceId
+
+                    property bool occupied:
+                        root.workspaceOccupied(
+                            workspaceId
+                        )
+
+                    x:
+                        index
+                        * (
+                            root.workspaceItemSize
+                            + root.workspaceSpacing
+                        )
+
+                    width:
+                        root.workspaceItemSize
+
+                    height:
+                        root.workspaceItemSize
+
+                    Rectangle {
+                        anchors.centerIn:
+                            parent
+
+                        width:
+                            root.indicatorSize
+
+                        height:
+                            root.indicatorSize
+
+                        radius:
+                            width / 2
+
+                        visible:
+                            !headerWorkspace.active
+
+                        /*
+                         * EXPANDED HEADER:
+                         *
+                         * active   = handled above / base
+                         * occupied = gray
+                         * empty    = white
+                         *
+                         * Compact keeps the old visual
+                         * language.
+                         */
+                        color: {
+                            if (root.closing) {
+                                if (
+                                    headerWorkspace.occupied
+                                ) {
+                                    return Colors.lavender
+                                }
+
+                                return Colors.surface0
+                            }
+
+							if (
+								root.expanded
+								|| root.hovered
+							) {
+								if (
+									headerWorkspace.occupied
+								) {
+									return Colors.overlay0
+								}
+
+								return Colors.text
+							}
+
+                            if (
+                                headerWorkspace.occupied
+                            ) {
+                                return Colors.lavender
+                            }
+
+                            return Colors.surface0
+                        }
+
+                        scale:
+                            headerMouse.containsMouse
+                            && root.expanded
+                                ? 1.25
+                                : 1.0
+
+                        Behavior on color {
+                            ColorAnimation {
+                                duration: 150
+                            }
+                        }
+
+                        Behavior on scale {
+                            NumberAnimation {
+                                duration: 180
+
+                                easing.type:
+                                    Easing.OutBack
+
+                                easing.overshoot:
+                                    1.35
+                            }
+                        }
+                    }
+
+                    MouseArea {
+                        id: headerMouse
+
+                        anchors.fill:
+                            parent
+
+                        enabled:
+                            root.expanded
+                            && !root.closing
+
+                        hoverEnabled:
+                            true
+
+                        onClicked: {
+                            root.switchAndClose(
+                                headerWorkspace.workspaceId
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // ═════════════════════════════════════
+        // Expanded overview card
+        // ═════════════════════════════════════
+
+        Rectangle {
+            id: overviewCard
+
+            z:
+                3
+
+            visible:
+                root.expanded
+
+            x:
+                root.expandedEdgeThickness
+
+            y:
+                root.expandedHeaderHeight
+
+            width:
+                Math.max(
+                    0,
+                    visualRoot.width
+                    - root.expandedEdgeThickness * 2
+                )
+
+            height:
+                Math.max(
+                    0,
+                    visualRoot.height
+                    - root.expandedHeaderHeight
+                    - root.expandedEdgeThickness
+                )
+
+            radius:
+                Math.max(
+                    0,
+                    Appearance.moduleRadius
+                    - root.expandedEdgeThickness
+                )
+
+            color:
+                Colors.base
+
+            clip:
+                true
+
+            Item {
+                id: overviewContent
+
+                anchors.fill:
+                    parent
+
+                opacity:
+                    0.0
+
+                Behavior on opacity {
+                    NumberAnimation {
+                        duration: 160
+                        easing.type: Easing.OutCubic
+                    }
+                }
+
+                Grid {
+                    id: workspaceGrid
 
                     anchors.centerIn:
                         parent
 
-                    width:
-                        root.indicatorSize
+                    columns:
+                        3
 
-                    height:
-                        root.indicatorSize
+                    columnSpacing:
+                        10 * Appearance.scale
 
-                    radius:
-                        width / 2
+                    rowSpacing:
+                        10 * Appearance.scale
 
-                    /*
-                     * The active workspace is drawn
-                     * by activeIndicator instead.
-                     */
-                    visible:
-                        !workspaceItem.active
+                    Repeater {
+                        model:
+                            root.workspaceCount
 
-                    color: {
-                        if (workspaceMouse.containsMouse)
-                            return Colors.text
+                        delegate: Rectangle {
+                            id: workspaceCard
 
-                        if (workspaceItem.occupied)
-                            return Colors.lavender
+                            required property int index
 
-                        return Colors.surface0
-                    }
+                            property int workspaceId:
+                                index + 1
 
-                    scale:
-                        workspaceMouse.containsMouse
-                            ? 1.25
-                            : 1.0
+                            property bool active:
+                                root.activeWorkspaceId
+                                    === workspaceId
 
-                    Behavior on color {
-                        ColorAnimation {
-                            duration: 150
-                        }
-                    }
+                            property bool occupied:
+                                root.workspaceOccupied(
+                                    workspaceId
+                                )
 
-                    Behavior on scale {
-                        NumberAnimation {
-                            duration: 180
-                            easing.type: Easing.OutBack
-                            easing.overshoot: 1.35
+                            width:
+                                96 * Appearance.scale
+
+                            height:
+                                72 * Appearance.scale
+
+                            radius:
+                                Appearance.controlRadius
+
+                            // ─────────────────
+                            // State through fill
+                            // ─────────────────
+
+                            color:
+                                workspaceCard.active
+                                    ? root.accentColor
+                                    : Colors.base
+
+                            // ─────────────────
+                            // State through edge
+                            //
+                            // active:
+                            // filled peach
+                            //
+                            // occupied:
+                            // peach border
+                            //
+                            // empty:
+                            // inactive border
+                            // ─────────────────
+
+                            border.width:
+                                workspaceCard.active
+                                    ? 0
+                                    : Appearance.borderWidth
+
+                            border.color: {
+                                if (
+                                    workspaceCard.occupied
+                                ) {
+                                    return root.accentColor
+                                }
+
+                                if (
+                                    cardMouse.containsMouse
+                                ) {
+                                    return Colors.overlay1
+                                }
+
+                                return Colors.surface1
+                            }
+
+                            scale:
+                                cardMouse.containsMouse
+                                    ? 1.055
+                                    : 1.0
+
+                            Behavior on color {
+                                ColorAnimation {
+                                    duration: 150
+                                }
+                            }
+
+                            Behavior on border.color {
+                                ColorAnimation {
+                                    duration: 150
+                                }
+                            }
+
+                            Behavior on scale {
+                                NumberAnimation {
+                                    duration: 200
+
+                                    easing.type:
+                                        Easing.OutBack
+
+                                    easing.overshoot:
+                                        1.35
+                                }
+                            }
+
+                            // ─────────────────
+                            // Workspace number
+                            // ─────────────────
+
+                            Text {
+                                anchors.centerIn:
+                                    parent
+
+                                text:
+                                    workspaceCard.workspaceId
+
+                                color: {
+                                    if (
+                                        workspaceCard.active
+                                    ) {
+                                        return Colors.base
+                                    }
+
+                                    if (
+                                        workspaceCard.occupied
+                                    ) {
+                                        return root.accentColor
+                                    }
+
+                                    if (
+                                        cardMouse.containsMouse
+                                    ) {
+                                        return Colors.text
+                                    }
+
+                                    return Colors.overlay0
+                                }
+
+                                font.pixelSize:
+                                    Appearance.textSize + 10
+
+                                font.bold:
+                                    true
+
+                                Behavior on color {
+                                    ColorAnimation {
+                                        duration: 150
+                                    }
+                                }
+                            }
+
+                            MouseArea {
+                                id: cardMouse
+
+                                anchors.fill:
+                                    parent
+
+                                hoverEnabled:
+                                    true
+
+                                onClicked: {
+                                    root.switchAndClose(
+                                        workspaceCard.workspaceId
+                                    )
+                                }
+                            }
                         }
                     }
                 }
+            }
+        }
 
-                // ─────────────────────────────
-                // Workspace interaction
-                // ─────────────────────────────
+        // ═════════════════════════════════════
+        // Closing base wipe
+        // ═════════════════════════════════════
 
-                MouseArea {
-                    id: workspaceMouse
+        Rectangle {
+            id: closeFill
 
-                    anchors.fill:
-                        parent
+            z:
+                5
 
-                    hoverEnabled:
-                        true
+            visible:
+                root.closing
 
-                    onClicked: {
-						Hyprland.dispatch(
-							'hl.dsp.focus({ workspace = "'
-							+ workspaceItem.workspaceId
-							+ '" })'
-						)
-					}
+            x:
+                root.expandedEdgeThickness
+
+            y:
+                root.closeFillTop
+
+            width:
+                Math.max(
+                    0,
+                    visualRoot.width
+                    - root.expandedEdgeThickness * 2
+                )
+
+            height:
+                Math.max(
+                    0,
+                    visualRoot.height
+                    - root.closeFillTop
+                    - root.expandedEdgeThickness
+                )
+
+            radius:
+                Math.max(
+                    0,
+                    Appearance.moduleRadius
+                    - root.expandedEdgeThickness
+                )
+
+            color:
+                Colors.base
+        }
+    }
+
+    // ═════════════════════════════════════════
+    // Compact interaction
+    // ═════════════════════════════════════════
+
+    MouseArea {
+        id: compactMouse
+
+        z:
+            20
+
+        visible:
+            !root.expanded
+
+        enabled:
+            !root.expanded
+
+        anchors.fill:
+            parent
+
+        hoverEnabled:
+            true
+
+        onExited: {
+            root.suppressHover =
+                false
+        }
+
+        onClicked: {
+            root.suppressHover =
+                false
+
+            root.open()
+        }
+    }
+
+    // ─────────────────────────────────────────
+    // Opening timers
+    // ─────────────────────────────────────────
+
+    Timer {
+        id: contentDelay
+
+        interval:
+            210
+
+        repeat:
+            false
+
+        onTriggered: {
+            overviewContent.opacity =
+                1.0
+        }
+    }
+
+    /*
+     * Give the PanelWindow a moment to request
+     * keyboard focus before focusing this module.
+     */
+    Timer {
+        id: focusDelay
+
+        interval:
+            50
+
+        repeat:
+            false
+
+        onTriggered: {
+            root.forceActiveFocus()
+        }
+    }
+
+    // ═════════════════════════════════════════
+    // Close choreography
+    // ═════════════════════════════════════════
+
+    SequentialAnimation {
+        id: closeAnimation
+
+        // ─────────────────────────────────────
+        // 1. Cards disappear
+        // ─────────────────────────────────────
+
+        NumberAnimation {
+            target:
+                overviewContent
+
+            property:
+                "opacity"
+
+            to:
+                0.0
+
+            duration:
+                90
+
+            easing.type:
+                Easing.OutCubic
+        }
+
+        // ═════════════════════════════════════
+        // 2. Base wipe + bounce together
+        // ═════════════════════════════════════
+
+        ParallelAnimation {
+
+            NumberAnimation {
+                target:
+                    root
+
+                property:
+                    "closeFillTop"
+
+                from:
+                    root.expandedHeaderHeight
+
+                to:
+                    root.expandedEdgeThickness
+
+                duration:
+                    260
+
+                easing.type:
+                    Easing.InOutCubic
+            }
+
+            SequentialAnimation {
+
+                // Anticipation
+
+                NumberAnimation {
+                    target:
+                        root
+
+                    property:
+                        "closeBounceScale"
+
+                    from:
+                        1.0
+
+                    to:
+                        0.965
+
+                    duration:
+                        70
+
+                    easing.type:
+                        Easing.InCubic
                 }
+
+                // Spring outward
+
+                NumberAnimation {
+                    target:
+                        root
+
+                    property:
+                        "closeBounceScale"
+
+                    from:
+                        0.965
+
+                    to:
+                        1.075
+
+                    duration:
+                        190
+
+                    easing.type:
+                        Easing.OutBack
+
+                    easing.overshoot:
+                        1.45
+                }
+            }
+        }
+
+        // Base is now established underneath.
+
+        ScriptAction {
+            script: {
+                root.collapseBase =
+                    true
+            }
+        }
+
+        // ═════════════════════════════════════
+        // 3. Recovery + shrink together
+        // ═════════════════════════════════════
+
+        ParallelAnimation {
+
+            NumberAnimation {
+                target:
+                    root
+
+                property:
+                    "closeBounceScale"
+
+                from:
+                    1.075
+
+                to:
+                    1.0
+
+                duration:
+                    280
+
+                easing.type:
+                    Easing.OutCubic
+            }
+
+            SequentialAnimation {
+                ScriptAction {
+                    script: {
+                        root.shrinking =
+                            true
+                    }
+                }
+
+                PauseAnimation {
+                    duration:
+                        280
+                }
+            }
+        }
+
+        // ═════════════════════════════════════
+        // 4. Compact
+        // ═════════════════════════════════════
+
+        ScriptAction {
+            script: {
+                root.suppressHover =
+                    true
+
+                root.expanded =
+                    false
+
+                root.closing =
+                    false
+
+                root.shrinking =
+                    false
+
+                root.collapseBase =
+                    true
+
+                root.closeFillTop =
+                    root.expandedHeaderHeight
+
+                root.closeBounceScale =
+                    1.0
+
+                overviewContent.opacity =
+                    0.0
             }
         }
     }

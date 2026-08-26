@@ -1,5 +1,5 @@
 # This module is intended for system settings
-{ ... }:
+{ pkgs, username, ... }:
 
 let
   home-manager = builtins.fetchTarball
@@ -46,11 +46,27 @@ in
   home-manager.useGlobalPkgs = true;
   home-manager.useUserPackages = true;
 
-  home-manager.users.subaru = import ../home/home.nix;
+  home-manager.extraSpecialArgs = {
+    inherit username;
+  };
+  
+  home-manager.users.${username} = 
+    import ../home/home.nix;
   
   # I2C support for external monitor control
   hardware.i2c.enable = true;
   
   # PAM for lockscreen
   security.pam.services.hyprlock = {};
+  
+  # Japanese input
+  i18n.inputMethod = {
+    enable = true;
+    type = "fcitx5";
+
+    fcitx5.addons = with pkgs; [
+      fcitx5-mozc
+      fcitx5-gtk
+  ];
+};
 }

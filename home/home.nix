@@ -1,10 +1,10 @@
 #  This module is for managing Home Manager 
  
-{ pkgs, ... }:
+{ config, pkgs, username, ... }:
 
 {
-  home.username = "subaru";
-  home.homeDirectory = "/home/subaru";
+  home.username = username;
+  home.homeDirectory = "/home/${username}";
 
   home.stateVersion = "26.05";
 
@@ -63,6 +63,37 @@
     "kitty".source = ./dots/kitty;
     "fastfetch".source = ./dots/fastfetch;
     "quickshell".source = ./dots/quickshell;
+  };			
+  
+  ## Default apps
+  
+  # Set nemo as default file browser
+  xdg.desktopEntries.nemo = {
+    name = "Nemo";
+	  exec = "${pkgs.nemo-with-extensions}/bin/nemo";
+
+  };
+  xdg.mimeApps = {
+    enable = true;
+	defaultApplications = {
+      "inode/directory" = [ "nemo.desktop" ];
+      "application/x-gnome-saved-search" = [ "nemo.desktop" ];
+      "text/plain" = [ "geany.desktop" ];
+  	  "text/x-lua" = [ "geany.desktop" ];
+	  "text/x-qml" = [ "geany.desktop" ];
+      "image/png" = [ "imv.desktop" ];
+		
+	};
+  };
+  
+  
+  # Set default terminal for nemo
+  dconf = {
+    settings = {
+      "org/cinnamon/desktop/applications/terminal" = {
+        exec = "kitty";
+      };
+    };
   };
 
 }

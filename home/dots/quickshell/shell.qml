@@ -1,4 +1,5 @@
 //@ pragma UseQApplication
+//@ pragma IconTheme Papirus-Dark
 
 import Quickshell
 import Quickshell.Io
@@ -8,6 +9,7 @@ import QtQuick
 
 import "Config"
 import "modules"
+import "modules/notifications"
 
 PanelWindow {
     id: root
@@ -19,144 +21,305 @@ PanelWindow {
     }
 
     implicitHeight: 1000
-    
-    exclusiveZone: Appearance.moduleHeight + Appearance.screenMargin + Appearance.panelBottomMargin
-    
-	focusable: true
-	
-	WlrLayershell.keyboardFocus: searchModule.expanded
-		? WlrKeyboardFocus.OnDemand
-		: WlrKeyboardFocus.None
-		
-    color: "transparent"
-    
-	mask: Region {
-		Region {
-			x: leftModules.x
-			y: leftModules.y
-			width: leftModules.width
-			height: leftModules.height
-		}
 
-		Region {
-			x: timeModule.x
-			y: timeModule.y
-			width: timeModule.width
-			height: timeModule.height
-		}
+    exclusiveZone:
+        Appearance.moduleHeight
+        + Appearance.screenMargin
+        + Appearance.panelBottomMargin
 
-		Region {
-			x: rightModules.x
-			y: rightModules.y
-			width: rightModules.width
-			height: rightModules.height
-		}
-	}
-    
+    focusable: true
+
+    // ═════════════════════════════════════════
+    // Shared notification backend
+    // ═════════════════════════════════════════
+
+    NotificationBackend {
+        id: notificationBackend
+    }
+
+    // ═════════════════════════════════════════
+    // Keyboard focus
+    // ═════════════════════════════════════════
+
+    WlrLayershell.keyboardFocus:
+        searchModule.expanded
+        || workspaceModule.expanded
+        || timeModule.expanded
+        || musicModule.expanded
+        || notificationModule.expanded
+        || powerModule.expanded
+            ? WlrKeyboardFocus.OnDemand
+            : WlrKeyboardFocus.None
+
+    color:
+        "transparent"
+
+    // ═════════════════════════════════════════
+    // Input mask
+    // ═════════════════════════════════════════
+
+    mask: Region {
+        Region {
+            x: leftModules.x
+            y: leftModules.y
+            width: leftModules.width
+            height: leftModules.height
+        }
+
+        Region {
+            x: timeModule.x
+            y: timeModule.y
+            width: timeModule.width
+            height: timeModule.height
+        }
+
+        Region {
+            x: rightModules.x
+            y: rightModules.y
+            width: rightModules.width
+            height: rightModules.height
+        }
+    }
+
+    // ═════════════════════════════════════════
+    // LEFT MODULES
+    // ═════════════════════════════════════════
+
     Row {
-		id: leftModules
+        id: leftModules
 
-		anchors {
-			left: parent.left
-			top: parent.top
+        anchors {
+            left: parent.left
+            top: parent.top
 
-			leftMargin: Appearance.screenMargin
-			topMargin: Appearance.screenMargin
-		}
+            leftMargin:
+                Appearance.screenMargin
 
-		spacing: Appearance.moduleSpacing
+            topMargin:
+                Appearance.screenMargin
+        }
 
-		SearchModule {
-			id: searchModule
-		}
+        spacing:
+            Appearance.moduleSpacing
 
-		WorkspaceModule {
-			id: workspaceModule
-		}
-	}
-	
-	TimeModule {
-		id: timeModule
+        SearchModule {
+            id: searchModule
 
-		anchors {
-			horizontalCenter: parent.horizontalCenter
-			top: parent.top
-			topMargin: Appearance.screenMargin
-		}
-	}
-    
-	Row {
-		id: rightModules
+            onExpandedChanged: {
+                if (expanded) {
+                    workspaceModule.close()
+                    timeModule.close()
+                    musicModule.close()
+                    notificationModule.close()
+                    powerModule.close()
+                }
+            }
+        }
 
-		anchors {
-			right: parent.right
-			top: parent.top
+        WorkspaceModule {
+            id: workspaceModule
 
-			rightMargin: Appearance.screenMargin
-			topMargin: Appearance.screenMargin
-		}
+            onExpandedChanged: {
+                if (expanded) {
+                    searchModule.close()
+                    timeModule.close()
+                    musicModule.close()
+                    notificationModule.close()
+                    powerModule.close()
+                }
+            }
+        }
+    }
 
-		spacing: Appearance.moduleSpacing
+    // ═════════════════════════════════════════
+    // CENTER MODULE
+    // ═════════════════════════════════════════
 
-		MusicModule {
-			id: musicModule
-		}
-		
-		SystrayModule {
-			id: systrayModule
-		}		
+    TimeModule {
+        id: timeModule
 
-		PowerModule {
-			id: powerModule
-		}
-	}
-    
+        anchors {
+            horizontalCenter:
+                parent.horizontalCenter
+
+            top:
+                parent.top
+
+            topMargin:
+                Appearance.screenMargin
+        }
+
+        onExpandedChanged: {
+            if (expanded) {
+                searchModule.close()
+                workspaceModule.close()
+                musicModule.close()
+                notificationModule.close()
+                powerModule.close()
+            }
+        }
+    }
+
+    // ═════════════════════════════════════════
+    // RIGHT MODULES
+    // ═════════════════════════════════════════
+
+    Row {
+        id: rightModules
+
+        anchors {
+            right:
+                parent.right
+
+            top:
+                parent.top
+
+            rightMargin:
+                Appearance.screenMargin
+
+            topMargin:
+                Appearance.screenMargin
+        }
+
+        spacing:
+            Appearance.moduleSpacing
+
+        MusicModule {
+            id: musicModule
+
+            onExpandedChanged: {
+                if (expanded) {
+                    searchModule.close()
+                    workspaceModule.close()
+                    timeModule.close()
+                    notificationModule.close()
+                    powerModule.close()
+                }
+            }
+        }
+
+        NotificationModule {
+            id: notificationModule
+
+            backend:
+                notificationBackend
+
+            onExpandedChanged: {
+                if (expanded) {
+                    searchModule.close()
+                    workspaceModule.close()
+                    timeModule.close()
+                    musicModule.close()
+                    powerModule.close()
+                }
+            }
+        }
+
+        SystrayModule {
+            id: systrayModule
+        }
+
+        PowerModule {
+            id: powerModule
+
+            onExpandedChanged: {
+                if (expanded) {
+                    searchModule.close()
+                    workspaceModule.close()
+                    timeModule.close()
+                    musicModule.close()
+                    notificationModule.close()
+                }
+            }
+        }
+    }
+
+    // ═════════════════════════════════════════
+    // Notification popup layer
+    //
+    // This is a separate floating PopupWindow
+    // anchored to NotificationModule.
+    // ═════════════════════════════════════════
+
+    NotificationPopupLayer {
+        backend:
+            notificationBackend
+
+        anchorItem:
+            notificationModule
+    }
+
+    // ═════════════════════════════════════════
+    // Focus grabs
+    // ═════════════════════════════════════════
+
     HyprlandFocusGrab {
-		id: searchFocusGrab
+        id: searchFocusGrab
 
-		windows: [root]
-		active: searchModule.expanded
+        windows: [root]
+        active: searchModule.expanded
 
-		onCleared: {
-			searchModule.close ()
-		}
-	}
-	
-	HyprlandFocusGrab {
-		id: timeFocusGrab
+        onCleared:
+            searchModule.close()
+    }
 
-		windows: [root]
-		active: timeModule.expanded
+    HyprlandFocusGrab {
+        id: workspaceFocusGrab
 
-		onCleared: {
-			timeModule.close()
-		}
-	}
-	
-	HyprlandFocusGrab {
-		id: powerFocusGrab
+        windows: [root]
+        active: workspaceModule.expanded
 
-		windows: [root]
-		active: powerModule.expanded
+        onCleared:
+            workspaceModule.close()
+    }
 
-		onCleared: {
-			powerModule.close()
-		}
-	}
-	
-	HyprlandFocusGrab {
-		id: musicFocusGrab
+    HyprlandFocusGrab {
+        id: timeFocusGrab
 
-		windows: [root]
-		active: musicModule.expanded
+        windows: [root]
+        active: timeModule.expanded
 
-		onCleared: {
-			musicModule.close()
-		}
-	}
-	
-	IpcHandler {
-        target: "search"
+        onCleared:
+            timeModule.close()
+    }
+
+    HyprlandFocusGrab {
+        id: musicFocusGrab
+
+        windows: [root]
+        active: musicModule.expanded
+
+        onCleared:
+            musicModule.close()
+    }
+
+    HyprlandFocusGrab {
+        id: notificationFocusGrab
+
+        windows: [root]
+        active: notificationModule.expanded
+
+        onCleared:
+            notificationModule.close()
+    }
+
+    HyprlandFocusGrab {
+        id: powerFocusGrab
+
+        windows: [root]
+        active: powerModule.expanded
+
+        onCleared:
+            powerModule.close()
+    }
+
+    // ═════════════════════════════════════════
+    // IPC
+    // ═════════════════════════════════════════
+
+    IpcHandler {
+        target:
+            "search"
 
         function toggle(): void {
             searchModule.toggle()

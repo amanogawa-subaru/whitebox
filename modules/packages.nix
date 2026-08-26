@@ -12,15 +12,20 @@
     btop
     fastfetch
     pciutils
-    grim
-    
-    # Editing
-    geany
-	gimp
-    audacity
+    cava
+
+    # Utilities
+    hyprpaper
+    imv # image viewer
+    ddcutil # for brightness
+    brightnessctl # also for brightness
+    playerctl
+    grim # screenshots
+    yt-dlp
+    libnotify    
     
     # Desktop apps
-    nemo
+    nemo-with-extensions
     qbittorrent
     baobab
     quickshell
@@ -28,13 +33,11 @@
     lollypop
     anki
     calibre
-    
-    
-    # Utilities
-    hyprpaper
-    imv # image viewer
-    ddcutil # for brightness
-    brightnessctl # also for brightness
-    playerctl
+
+    # Editing
+    geany
+	gimp
+    audacity
+        
     ];
 }

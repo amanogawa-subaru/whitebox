@@ -1,6 +1,12 @@
 -- KEYBINDS --
-local mainMod = "SUPER" -- Sets "Windows" key as main modifier
+
+-- Sets "Windows" key as main modifier
+local mainMod = "SUPER" 
 hl.bind(mainMod .. " + SHIFT + Q", hl.dsp.exec_cmd("command -v hyprshutdown >/dev/null 2>&1 && hyprshutdown || hyprctl dispatch 'hl.dsp.exit()'")) -- Quit hyprland
+
+-- Reset hyprland and quickshell
+hl.bind(mainMod .. " + SHIFT + R", hl.dsp.exec_cmd("hyprctl reload; qs kill; sleep 0.2; qs")
+)
 
 hl.bind(mainMod .. " + Return", hl.dsp.exec_cmd("kitty"))
 hl.bind(mainMod .. " + B", hl.dsp.exec_cmd("firefox"))
@@ -8,19 +14,21 @@ hl.bind(mainMod .. " + E", hl.dsp.exec_cmd("nemo"))
 
 
 -- Quickshell
+
 hl.bind(mainMod .. " + R", hl.dsp.exec_cmd("qs ipc call search toggle"))
 
 -- WINDOWS --
 
--- closeWindowBind:set_enabled(false)
 local closeWindowBind = hl.bind(mainMod .. " + Q", hl.dsp.window.close())
 hl.bind(mainMod .. " + J", hl.dsp.layout("togglesplit"))    -- dwindle only
 hl.bind(mainMod .. " + P", hl.dsp.window.pseudo())
 
--- Toggle floating, resize, and center
+
+-- Toggle floating, resize, and center with one keybind
 hl.bind(mainMod .. " + F", hl.dsp.window.float({ action = "toggle" }))
 hl.bind(mainMod .. " + F", hl.dsp.window.resize({ x = 1000, y = 700, relative = false }))
 hl.bind(mainMod .. " + F", hl.dsp.window.center())
+
 
 -- Move focused window with mainMod + SHIFT + arrow keys
 hl.bind(mainMod .. " + SHIFT + left", hl.dsp.window.move({ direction = "left"}))
@@ -32,7 +40,9 @@ hl.bind(mainMod .. " + SHIFT + down", hl.dsp.window.move({ direction = "down"}))
 hl.bind(mainMod .. " + mouse:272", hl.dsp.window.drag(),   { mouse = true })
 hl.bind(mainMod .. " + mouse:273", hl.dsp.window.resize(), { mouse = true })
 
+
 -- NAVIGATION --
+
 hl.bind(mainMod .. " + L", hl.dsp.exec_cmd("hyprlock")) -- Lock
 -- Move focus with mainMod + arrow keys
 hl.bind(mainMod .. " + left",  hl.dsp.focus({ direction = "left" }))

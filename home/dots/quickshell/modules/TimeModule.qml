@@ -2,61 +2,161 @@ import QtQuick
 
 import "../Config"
 
-Item {
+FocusScope {
     id: root
 
-    property date currentTime: new Date()
+    // ─────────────────────────────────────────
+    // Time / Calendar state
+    // ─────────────────────────────────────────
 
-    property date viewedMonth: new Date(
-        currentTime.getFullYear(),
-        currentTime.getMonth(),
-        1
-    )
+    property date currentTime:
+        new Date()
 
-    property bool hovered: compactHover.hovered
+    property date viewedMonth:
+        new Date(
+            currentTime.getFullYear(),
+            currentTime.getMonth(),
+            1
+        )
+
+    property int firstDayOfMonth:
+        new Date(
+            viewedMonth.getFullYear(),
+            viewedMonth.getMonth(),
+            1
+        ).getDay()
+
+    property int daysInMonth:
+        new Date(
+            viewedMonth.getFullYear(),
+            viewedMonth.getMonth() + 1,
+            0
+        ).getDate()
+
+    // ─────────────────────────────────────────
+    // Module state
+    // ─────────────────────────────────────────
+
+    property bool suppressHover: false
+
+    property bool hovered:
+        compactMouse.containsMouse
+        && !root.suppressHover
+
     property bool expanded: false
-    property bool contentVisible: false
+    property bool closing: false
+    property bool shrinking: false
+    property bool collapseBase: false
 
-    property int firstDayOfMonth: new Date(
-        viewedMonth.getFullYear(),
-        viewedMonth.getMonth(),
-        1
-    ).getDay()
+    // ─────────────────────────────────────────
+    // Design
+    // ─────────────────────────────────────────
 
-    property int daysInMonth: new Date(
-        viewedMonth.getFullYear(),
-        viewedMonth.getMonth() + 1,
-        0
-    ).getDate()
+    property color accentColor:
+        Colors.blue
+
+    property real expandedHeaderHeight:
+        48 * Appearance.scale
+
+    property real expandedEdgeThickness:
+        Appearance.borderWidth
+
+    property real expandedWidth:
+        340 * Appearance.scale
+
+    property real expandedHeight:
+        390 * Appearance.scale
+
+    property real closeFillTop:
+        root.expandedHeaderHeight
+
+    property real closeBounceScale:
+        1.0
 
     // ─────────────────────────────────────────
     // Open / Close
     // ─────────────────────────────────────────
 
     function open() {
-        collapseDelay.stop()
+        closeAnimation.stop()
 
-        root.expanded = true
-        root.contentVisible = false
+        root.suppressHover = false
+
+        root.closing = false
+        root.shrinking = false
+        root.collapseBase = false
+
+        root.closeFillTop =
+            root.expandedHeaderHeight
+
+        root.closeBounceScale =
+            1.0
+
+        calendarContent.opacity =
+            0.0
+
+        root.expanded =
+            true
 
         contentDelay.restart()
+        focusDelay.restart()
     }
 
     function close() {
-        if (!root.expanded)
+        if (
+            !root.expanded
+            || root.closing
+        ) {
             return
+        }
 
         contentDelay.stop()
+        focusDelay.stop()
 
-        root.contentVisible = false
+        root.closing =
+            true
 
-        root.viewedMonth = new Date(
-            root.currentTime.getFullYear(),
-            root.currentTime.getMonth(),
-            1
-        )
+        root.shrinking =
+            false
 
-        collapseDelay.restart()
+        root.collapseBase =
+            false
+
+        root.closeFillTop =
+            root.expandedHeaderHeight
+
+        root.closeBounceScale =
+            1.0
+
+        /*
+         * Always reset calendar view after close.
+         */
+        root.viewedMonth =
+            new Date(
+                root.currentTime.getFullYear(),
+                root.currentTime.getMonth(),
+                1
+            )
+
+        closeAnimation.restart()
+    }
+
+    function toggle() {
+        if (root.expanded)
+            root.close()
+        else
+            root.open()
+    }
+
+    // ─────────────────────────────────────────
+    // Escape
+    // ─────────────────────────────────────────
+
+    Keys.onEscapePressed: event => {
+        if (root.expanded) {
+            root.close()
+            event.accepted = true
+        }
     }
 
     // ─────────────────────────────────────────
@@ -65,563 +165,308 @@ Item {
 
     width:
         root.expanded
-            ? 340 * Appearance.scale
+        && !root.shrinking
+            ? root.expandedWidth
             : Appearance.timeWidth
 
     height:
         root.expanded
-            ? expandedContent.implicitHeight
-                + 40 * Appearance.scale
+        && !root.shrinking
+            ? root.expandedHeight
             : Appearance.moduleHeight
 
     Behavior on width {
         NumberAnimation {
-            duration: 300
+            duration: 280
             easing.type: Easing.OutCubic
         }
     }
 
     Behavior on height {
         NumberAnimation {
-            duration: 300
+            duration: 280
             easing.type: Easing.OutCubic
         }
     }
 
-    // ─────────────────────────────────────────
-    // Outer shell
-    // ─────────────────────────────────────────
+    // ═════════════════════════════════════════
+    // Entire visual module
+    // ═════════════════════════════════════════
 
-    Rectangle {
-        id: background
+    Item {
+        id: visualRoot
 
-        anchors.fill: parent
+        anchors.fill:
+            parent
 
-        radius: Appearance.moduleRadius
-        color: Colors.base
+        scale: {
+            if (root.closing)
+                return root.closeBounceScale
 
-        border.width: Appearance.borderWidth
-        border.color: Colors.blue
+            if (
+                root.hovered
+                && !root.expanded
+            ) {
+                return 1.09
+            }
 
-        scale:
-            root.hovered && !root.expanded
-                ? 1.09
-                : 1.0
+            return 1.0
+        }
 
-        transformOrigin: Item.Center
+        transformOrigin:
+            Item.Center
 
         Behavior on scale {
+            enabled:
+                !root.closing
+
             NumberAnimation {
                 duration: 300
-                easing.type: Easing.OutBack
-                easing.overshoot: 1.9
-            }
-        }
-    }
 
-    // ─────────────────────────────────────────
-    // Clock update
-    // ─────────────────────────────────────────
+                easing.type:
+                    Easing.OutBack
 
-    Timer {
-        interval: 1000
-        running: true
-        repeat: true
-
-        onTriggered: {
-            root.currentTime = new Date()
-        }
-    }
-
-    // ─────────────────────────────────────────
-    // Compact clock
-    // ─────────────────────────────────────────
-
-    Text {
-        id: compactClock
-
-        visible: !root.expanded
-
-        anchors.centerIn: parent
-
-        text: Qt.formatDateTime(
-            root.currentTime,
-            "MMM d  HH:mm"
-        )
-
-        color: Colors.text
-        font.pixelSize: Appearance.textSize
-    }
-
-    HoverHandler {
-        id: compactHover
-        enabled: !root.expanded
-    }
-
-    MouseArea {
-        id: compactMouse
-
-        z: 3
-
-        visible: !root.expanded
-        enabled: !root.expanded
-
-        anchors.fill: parent
-
-        hoverEnabled: true
-
-        onClicked: {
-            root.open()
-        }
-    }
-
-    // ─────────────────────────────────────────
-    // Expanded content
-    // ─────────────────────────────────────────
-
-    Column {
-        id: expandedContent
-
-        z: 2
-
-        width:
-            root.width
-            - 40 * Appearance.scale
-
-        anchors {
-            top: parent.top
-            horizontalCenter: parent.horizontalCenter
-
-            topMargin:
-                20 * Appearance.scale
-        }
-
-        spacing:
-            14 * Appearance.scale
-
-        visible: opacity > 0
-
-        opacity:
-            root.contentVisible
-                ? 1.0
-                : 0.0
-
-        transform: Translate {
-            y:
-                root.contentVisible
-                    ? 0
-                    : 8
-
-            Behavior on y {
-                NumberAnimation {
-                    duration: 200
-                    easing.type: Easing.OutCubic
-                }
-            }
-        }
-
-        Behavior on opacity {
-            NumberAnimation {
-                duration: 200
-                easing.type: Easing.OutCubic
+                easing.overshoot:
+                    1.9
             }
         }
 
         // ─────────────────────────────────────
-        // Time / Date card
+        // Blue outer shell
         // ─────────────────────────────────────
 
         Rectangle {
-            id: timeCard
+            id: outerShell
 
-            width: parent.width
+            anchors.fill:
+                parent
 
-            implicitHeight:
-                timeColumn.implicitHeight
-                + 28 * Appearance.scale
+            radius:
+                Appearance.moduleRadius
 
-            height: implicitHeight
-
-            radius: Appearance.controlRadius
-            color: Colors.surface0
-
-            Column {
-                id: timeColumn
-
-                anchors.centerIn: parent
-
-                spacing:
-                    5 * Appearance.scale
-
-                Text {
-                    anchors.horizontalCenter:
-                        parent.horizontalCenter
-
-                    text: Qt.formatDateTime(
-                        root.currentTime,
-                        "HH:mm"
-                    )
-
-                    color: Colors.blue
-
-                    font.pixelSize:
-                        Appearance.textSize + 12
-
-                    font.bold: true
+            color: {
+                if (
+                    root.hovered
+                    && !root.expanded
+                ) {
+                    return root.accentColor
                 }
 
-                Text {
-                    anchors.horizontalCenter:
-                        parent.horizontalCenter
+                if (root.collapseBase)
+                    return Colors.base
 
-                    text: Qt.formatDateTime(
-                        root.currentTime,
-                        "dddd, MMMM d"
-                    )
+                if (root.expanded)
+                    return root.accentColor
 
-                    color: Colors.text
-                    font.pixelSize: Appearance.textSize
+                return Colors.base
+            }
+
+            border.width:
+                Appearance.borderWidth
+
+            border.color:
+                root.accentColor
+
+            Behavior on color {
+                ColorAnimation {
+                    duration: 160
                 }
             }
         }
 
-        // ─────────────────────────────────────
-        // Calendar card
-        // ─────────────────────────────────────
+        // ═════════════════════════════════════
+        // Persistent clock
+        //
+        // Same physical text object in compact
+        // and expanded modes.
+        // ═════════════════════════════════════
+
+		Item {
+			id: clockSlot
+
+			z: 7
+
+			width:
+				visualRoot.width
+
+			height:
+				root.expanded
+					? root.expandedHeaderHeight
+					: Appearance.moduleHeight
+
+			anchors {
+				left: parent.left
+				top: parent.top
+			}
+
+			Text {
+				id: clockText
+
+				anchors.centerIn:
+					parent
+
+				text:
+					Qt.formatDateTime(
+						root.currentTime,
+						"MMM d  HH:mm"
+					)
+
+				color: {
+					if (
+						root.hovered
+						&& !root.expanded
+					) {
+						return Colors.base
+					}
+
+					if (
+						root.closing
+						|| root.collapseBase
+					) {
+						return root.accentColor
+					}
+
+					if (root.expanded)
+						return Colors.base
+
+					return Colors.text
+				}
+
+				font.pixelSize:
+					Appearance.textSize
+
+				scale:
+					root.expanded
+					&& !root.closing
+						? 1.06
+						: 1.0
+
+				Behavior on color {
+					ColorAnimation {
+						duration: 150
+					}
+				}
+
+				Behavior on scale {
+					NumberAnimation {
+						duration: 220
+						easing.type: Easing.OutBack
+						easing.overshoot: 1.3
+					}
+				}
+			}
+		}
+
+        // ═════════════════════════════════════
+        // Calendar inset
+        // ═════════════════════════════════════
 
         Rectangle {
             id: calendarCard
 
-            width: parent.width
+            z:
+                3
 
-            implicitHeight:
-                calendarColumn.implicitHeight
-                + 24 * Appearance.scale
+            visible:
+                root.expanded
 
-            height: implicitHeight
+            x:
+                root.expandedEdgeThickness
 
-            radius: Appearance.controlRadius
-            color: Colors.surface0
+            y:
+                root.expandedHeaderHeight
 
-            Column {
-                id: calendarColumn
+            width:
+                Math.max(
+                    0,
+                    visualRoot.width
+                    - root.expandedEdgeThickness * 2
+                )
 
-                width:
-                    parent.width
-                    - 24 * Appearance.scale
+            height:
+                Math.max(
+                    0,
+                    visualRoot.height
+                    - root.expandedHeaderHeight
+                    - root.expandedEdgeThickness
+                )
 
-                anchors.centerIn: parent
+            radius:
+                Math.max(
+                    0,
+                    Appearance.moduleRadius
+                    - root.expandedEdgeThickness
+                )
 
-                spacing:
-                    10 * Appearance.scale
+            color:
+                Colors.base
 
-                // ─────────────────────────────
-                // Month navigation
-                // ─────────────────────────────
+            clip:
+                true
 
-                Row {
-                    anchors.horizontalCenter:
-                        parent.horizontalCenter
+            Item {
+                id: calendarContent
+
+                anchors.fill:
+                    parent
+
+                opacity:
+                    0.0
+
+                Behavior on opacity {
+                    NumberAnimation {
+                        duration: 160
+                        easing.type: Easing.OutCubic
+                    }
+                }
+
+                Column {
+                    id: calendarColumn
+
+                    width:
+                        parent.width
+                        - 28 * Appearance.scale
+
+                    anchors.centerIn:
+                        parent
 
                     spacing:
                         12 * Appearance.scale
 
-                    Item {
-                        width: 30 * Appearance.scale
-                        height: 30 * Appearance.scale
+                    // ─────────────────────────
+                    // Month navigation
+                    // ─────────────────────────
 
-                        Text {
-                            anchors.centerIn: parent
+                    Row {
+                        anchors.horizontalCenter:
+                            parent.horizontalCenter
 
-                            text: "󰅁"
+                        spacing:
+                            12 * Appearance.scale
 
-                            font.family:
-                                "Symbols Nerd Font"
+                        // Previous
 
-                            font.pixelSize:
-                                Appearance.iconSize
-
-                            color:
-                                previousMonthMouse.containsMouse
-                                    ? Colors.blue
-                                    : Colors.text
-
-                            scale:
-                                previousMonthMouse.containsMouse
-                                    ? 1.18
-                                    : 1.0
-
-                            Behavior on color {
-                                ColorAnimation {
-                                    duration: 150
-                                }
-                            }
-
-                            Behavior on scale {
-                                NumberAnimation {
-                                    duration: 180
-                                    easing.type: Easing.OutBack
-                                    easing.overshoot: 1.35
-                                }
-                            }
-                        }
-
-                        MouseArea {
-                            id: previousMonthMouse
-
-                            anchors.fill: parent
-                            hoverEnabled: true
-
-                            onClicked: {
-                                root.viewedMonth = new Date(
-                                    root.viewedMonth.getFullYear(),
-                                    root.viewedMonth.getMonth() - 1,
-                                    1
-                                )
-                            }
-                        }
-                    }
-
-                    Text {
-                        width:
-                            170 * Appearance.scale
-
-                        text: Qt.formatDate(
-                            root.viewedMonth,
-                            "MMMM yyyy"
-                        )
-
-                        color:
-                            monthMouse.containsMouse
-                                ? Colors.blue
-                                : Colors.text
-
-                        font.pixelSize:
-                            Appearance.textSize + 1
-
-                        font.bold: true
-
-                        horizontalAlignment:
-                            Text.AlignHCenter
-
-                        verticalAlignment:
-                            Text.AlignVCenter
-
-                        Behavior on color {
-                            ColorAnimation {
-                                duration: 150
-                            }
-                        }
-
-                        MouseArea {
-                            id: monthMouse
-
-                            anchors.fill: parent
-                            hoverEnabled: true
-
-                            onClicked: {
-                                root.viewedMonth = new Date(
-                                    root.currentTime.getFullYear(),
-                                    root.currentTime.getMonth(),
-                                    1
-                                )
-                            }
-                        }
-                    }
-
-                    Item {
-                        width: 30 * Appearance.scale
-                        height: 30 * Appearance.scale
-
-                        Text {
-                            anchors.centerIn: parent
-
-                            text: "󰅂"
-
-                            font.family:
-                                "Symbols Nerd Font"
-
-                            font.pixelSize:
-                                Appearance.iconSize
-
-                            color:
-                                nextMonthMouse.containsMouse
-                                    ? Colors.blue
-                                    : Colors.text
-
-                            scale:
-                                nextMonthMouse.containsMouse
-                                    ? 1.18
-                                    : 1.0
-
-                            Behavior on color {
-                                ColorAnimation {
-                                    duration: 150
-                                }
-                            }
-
-                            Behavior on scale {
-                                NumberAnimation {
-                                    duration: 180
-                                    easing.type: Easing.OutBack
-                                    easing.overshoot: 1.35
-                                }
-                            }
-                        }
-
-                        MouseArea {
-                            id: nextMonthMouse
-
-                            anchors.fill: parent
-                            hoverEnabled: true
-
-                            onClicked: {
-                                root.viewedMonth = new Date(
-                                    root.viewedMonth.getFullYear(),
-                                    root.viewedMonth.getMonth() + 1,
-                                    1
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // ─────────────────────────────
-                // Weekday labels
-                // ─────────────────────────────
-
-                Grid {
-                    id: weekdayGrid
-
-                    anchors.horizontalCenter:
-                        parent.horizontalCenter
-
-                    columns: 7
-
-                    columnSpacing:
-                        7 * Appearance.scale
-
-                    rowSpacing:
-                        0
-
-                    Repeater {
-                        model: [
-                            "Su",
-                            "Mo",
-                            "Tu",
-                            "We",
-                            "Th",
-                            "Fr",
-                            "Sa"
-                        ]
-
-                        delegate: Text {
-                            required property string modelData
-
+                        Item {
                             width:
-                                32 * Appearance.scale
+                                30 * Appearance.scale
 
                             height:
-                                28 * Appearance.scale
-
-                            text:
-                                modelData
-
-                            color:
-                                Colors.subtext0
-
-                            font.pixelSize:
-                                Appearance.textSize - 1
-
-                            horizontalAlignment:
-                                Text.AlignHCenter
-
-                            verticalAlignment:
-                                Text.AlignVCenter
-                        }
-                    }
-                }
-
-                // ─────────────────────────────
-                // Days
-                // ─────────────────────────────
-
-                Grid {
-                    id: daysGrid
-
-                    anchors.horizontalCenter:
-                        parent.horizontalCenter
-
-                    columns: 7
-
-                    columnSpacing:
-                        7 * Appearance.scale
-
-                    rowSpacing:
-                        6 * Appearance.scale
-
-                    Repeater {
-                        model:
-                            root.firstDayOfMonth
-                            + root.daysInMonth
-
-                        delegate: Item {
-                            id: dayItem
-
-                            required property int index
-
-                            width:
-                                32 * Appearance.scale
-
-                            height:
-                                32 * Appearance.scale
-
-                            property int dayNumber:
-                                index
-                                - root.firstDayOfMonth
-                                + 1
-
-                            property bool validDay:
-                                dayNumber > 0
-
-                            property bool isToday:
-                                dayNumber
-                                    === root.currentTime.getDate()
-                                && root.viewedMonth.getMonth()
-                                    === root.currentTime.getMonth()
-                                && root.viewedMonth.getFullYear()
-                                    === root.currentTime.getFullYear()
+                                30 * Appearance.scale
 
                             Rectangle {
-                                anchors.fill: parent
+                                anchors.fill:
+                                    parent
 
                                 radius:
                                     Appearance.controlRadius
 
-                                visible:
-                                    dayItem.validDay
-
-                                color: {
-                                    if (dayItem.isToday)
-                                        return Colors.blue
-
-                                    if (dayMouse.containsMouse)
-                                        return Colors.surface1
-
-                                    return "transparent"
-                                }
-
-                                border.width:
-                                    !dayItem.isToday
-                                    && dayMouse.containsMouse
-                                        ? Appearance.borderWidth / 2
-                                        : 0
-
-                                border.color:
-                                    Colors.blue
+                                color:
+                                    previousMonthMouse.containsMouse
+                                        ? Colors.surface1
+                                        : "transparent"
 
                                 scale:
-                                    dayMouse.containsMouse
+                                    previousMonthMouse.containsMouse
                                         ? 1.08
                                         : 1.0
 
@@ -634,77 +479,748 @@ Item {
                                 Behavior on scale {
                                     NumberAnimation {
                                         duration: 180
-                                        easing.type: Easing.OutBack
-                                        easing.overshoot: 1.25
+
+                                        easing.type:
+                                            Easing.OutBack
+
+                                        easing.overshoot:
+                                            1.3
                                     }
                                 }
                             }
 
                             Text {
-                                anchors.centerIn: parent
-
-                                visible:
-                                    dayItem.validDay
+                                anchors.centerIn:
+                                    parent
 
                                 text:
-                                    dayItem.dayNumber
+                                    "󰅁"
 
-                                color:
-                                    dayItem.isToday
-                                        ? Colors.base
-                                        : dayMouse.containsMouse
-                                            ? Colors.blue
-                                            : Colors.text
+                                font.family:
+                                    "Symbols Nerd Font"
 
                                 font.pixelSize:
-                                    Appearance.textSize
+                                    Appearance.iconSize
+
+                                color:
+                                    previousMonthMouse.containsMouse
+                                        ? root.accentColor
+                                        : Colors.text
+
+                                Behavior on color {
+                                    ColorAnimation {
+                                        duration: 150
+                                    }
+                                }
+                            }
+
+                            MouseArea {
+                                id: previousMonthMouse
+
+                                anchors.fill:
+                                    parent
+
+                                hoverEnabled:
+                                    true
+
+                                onClicked: {
+                                    root.viewedMonth =
+                                        new Date(
+                                            root.viewedMonth.getFullYear(),
+                                            root.viewedMonth.getMonth() - 1,
+                                            1
+                                        )
+                                }
+                            }
+                        }
+
+                        // Month / year
+
+                        Text {
+                            width:
+                                190 * Appearance.scale
+
+                            height:
+                                30 * Appearance.scale
+
+                            text:
+                                Qt.formatDate(
+                                    root.viewedMonth,
+                                    "MMMM yyyy"
+                                )
+
+                            color:
+                                monthMouse.containsMouse
+                                    ? root.accentColor
+                                    : Colors.text
+
+                            font.pixelSize:
+                                Appearance.textSize + 2
+
+                            font.bold:
+                                true
+
+                            horizontalAlignment:
+                                Text.AlignHCenter
+
+                            verticalAlignment:
+                                Text.AlignVCenter
+
+                            scale:
+                                monthMouse.containsMouse
+                                    ? 1.025
+                                    : 1.0
+
+                            Behavior on color {
+                                ColorAnimation {
+                                    duration: 150
+                                }
+                            }
+
+                            Behavior on scale {
+                                NumberAnimation {
+                                    duration: 180
+                                    easing.type: Easing.OutBack
+                                    easing.overshoot: 1.2
+                                }
+                            }
+
+                            MouseArea {
+                                id: monthMouse
+
+                                anchors.fill:
+                                    parent
+
+                                hoverEnabled:
+                                    true
+
+                                onClicked: {
+                                    root.viewedMonth =
+                                        new Date(
+                                            root.currentTime.getFullYear(),
+                                            root.currentTime.getMonth(),
+                                            1
+                                        )
+                                }
+                            }
+                        }
+
+                        // Next
+
+                        Item {
+                            width:
+                                30 * Appearance.scale
+
+                            height:
+                                30 * Appearance.scale
+
+                            Rectangle {
+                                anchors.fill:
+                                    parent
+
+                                radius:
+                                    Appearance.controlRadius
+
+                                color:
+                                    nextMonthMouse.containsMouse
+                                        ? Colors.surface1
+                                        : "transparent"
+
+                                scale:
+                                    nextMonthMouse.containsMouse
+                                        ? 1.08
+                                        : 1.0
 
                                 Behavior on color {
                                     ColorAnimation {
                                         duration: 120
                                     }
                                 }
+
+                                Behavior on scale {
+                                    NumberAnimation {
+                                        duration: 180
+
+                                        easing.type:
+                                            Easing.OutBack
+
+                                        easing.overshoot:
+                                            1.3
+                                    }
+                                }
+                            }
+
+                            Text {
+                                anchors.centerIn:
+                                    parent
+
+                                text:
+                                    "󰅂"
+
+                                font.family:
+                                    "Symbols Nerd Font"
+
+                                font.pixelSize:
+                                    Appearance.iconSize
+
+                                color:
+                                    nextMonthMouse.containsMouse
+                                        ? root.accentColor
+                                        : Colors.text
+
+                                Behavior on color {
+                                    ColorAnimation {
+                                        duration: 150
+                                    }
+                                }
                             }
 
                             MouseArea {
-                                id: dayMouse
+                                id: nextMonthMouse
 
-                                anchors.fill: parent
-                                hoverEnabled: true
+                                anchors.fill:
+                                    parent
 
-                                enabled:
-                                    dayItem.validDay
+                                hoverEnabled:
+                                    true
+
+                                onClicked: {
+                                    root.viewedMonth =
+                                        new Date(
+                                            root.viewedMonth.getFullYear(),
+                                            root.viewedMonth.getMonth() + 1,
+                                            1
+                                        )
+                                }
+                            }
+                        }
+                    }
+
+                    // ─────────────────────────
+                    // Weekday labels
+                    // ─────────────────────────
+
+                    Grid {
+                        id: weekdayGrid
+
+                        anchors.horizontalCenter:
+                            parent.horizontalCenter
+
+                        columns:
+                            7
+
+                        columnSpacing:
+                            7 * Appearance.scale
+
+                        rowSpacing:
+                            0
+
+                        Repeater {
+                            model: [
+                                "Su",
+                                "Mo",
+                                "Tu",
+                                "We",
+                                "Th",
+                                "Fr",
+                                "Sa"
+                            ]
+
+                            delegate: Text {
+                                required property string modelData
+
+                                width:
+                                    32 * Appearance.scale
+
+                                height:
+                                    28 * Appearance.scale
+
+                                text:
+                                    modelData
+
+                                color:
+                                    Colors.subtext0
+
+                                font.pixelSize:
+                                    Appearance.textSize - 1
+
+                                horizontalAlignment:
+                                    Text.AlignHCenter
+
+                                verticalAlignment:
+                                    Text.AlignVCenter
+                            }
+                        }
+                    }
+
+                    // ─────────────────────────
+                    // Days
+                    // ─────────────────────────
+
+                    Grid {
+                        id: daysGrid
+
+                        anchors.horizontalCenter:
+                            parent.horizontalCenter
+
+                        columns:
+                            7
+
+                        columnSpacing:
+                            7 * Appearance.scale
+
+                        rowSpacing:
+                            6 * Appearance.scale
+
+                        Repeater {
+                            model:
+                                root.firstDayOfMonth
+                                + root.daysInMonth
+
+                            delegate: Item {
+                                id: dayItem
+
+                                required property int index
+
+                                width:
+                                    32 * Appearance.scale
+
+                                height:
+                                    32 * Appearance.scale
+
+                                property int dayNumber:
+                                    index
+                                    - root.firstDayOfMonth
+                                    + 1
+
+                                property bool validDay:
+                                    dayNumber > 0
+
+                                property bool isToday:
+                                    dayNumber
+                                        === root.currentTime.getDate()
+                                    && root.viewedMonth.getMonth()
+                                        === root.currentTime.getMonth()
+                                    && root.viewedMonth.getFullYear()
+                                        === root.currentTime.getFullYear()
+
+                                Rectangle {
+                                    anchors.fill:
+                                        parent
+
+                                    radius:
+                                        Appearance.controlRadius
+
+                                    visible:
+                                        dayItem.validDay
+
+                                    color: {
+                                        if (dayItem.isToday)
+                                            return root.accentColor
+
+                                        if (
+                                            dayMouse.containsMouse
+                                        ) {
+                                            return Colors.surface1
+                                        }
+
+                                        return "transparent"
+                                    }
+
+                                    border.width:
+                                        !dayItem.isToday
+                                        && dayMouse.containsMouse
+                                            ? Appearance.borderWidth / 2
+                                            : 0
+
+                                    border.color:
+                                        root.accentColor
+
+                                    scale:
+                                        dayMouse.containsMouse
+                                            ? 1.05
+                                            : 1.0
+
+                                    Behavior on color {
+                                        ColorAnimation {
+                                            duration: 120
+                                        }
+                                    }
+
+                                    Behavior on scale {
+                                        NumberAnimation {
+                                            duration: 180
+
+                                            easing.type:
+                                                Easing.OutBack
+
+                                            easing.overshoot:
+                                                1.2
+                                        }
+                                    }
+                                }
+
+                                Text {
+                                    anchors.centerIn:
+                                        parent
+
+                                    visible:
+                                        dayItem.validDay
+
+                                    text:
+                                        dayItem.dayNumber
+
+                                    color:
+                                        dayItem.isToday
+                                            ? Colors.base
+                                            : dayMouse.containsMouse
+                                                ? root.accentColor
+                                                : Colors.text
+
+                                    font.pixelSize:
+                                        Appearance.textSize
+
+                                    Behavior on color {
+                                        ColorAnimation {
+                                            duration: 120
+                                        }
+                                    }
+                                }
+
+                                MouseArea {
+                                    id: dayMouse
+
+                                    anchors.fill:
+                                        parent
+
+                                    hoverEnabled:
+                                        true
+
+                                    enabled:
+                                        dayItem.validDay
+                                }
                             }
                         }
                     }
                 }
             }
         }
+
+        // ═════════════════════════════════════
+        // Closing base wipe
+        // ═════════════════════════════════════
+
+        Rectangle {
+            id: closeFill
+
+            z:
+                5
+
+            visible:
+                root.closing
+
+            x:
+                root.expandedEdgeThickness
+
+            y:
+                root.closeFillTop
+
+            width:
+                Math.max(
+                    0,
+                    visualRoot.width
+                    - root.expandedEdgeThickness * 2
+                )
+
+            height:
+                Math.max(
+                    0,
+                    visualRoot.height
+                    - root.closeFillTop
+                    - root.expandedEdgeThickness
+                )
+
+            radius:
+                Math.max(
+                    0,
+                    Appearance.moduleRadius
+                    - root.expandedEdgeThickness
+                )
+
+            color:
+                Colors.base
+        }
+    }
+
+    // ═════════════════════════════════════════
+    // Compact interaction
+    // ═════════════════════════════════════════
+
+    MouseArea {
+        id: compactMouse
+
+        z:
+            20
+
+        visible:
+            !root.expanded
+
+        enabled:
+            !root.expanded
+
+        anchors.fill:
+            parent
+
+        hoverEnabled:
+            true
+
+        onExited: {
+            root.suppressHover =
+                false
+        }
+
+        onClicked: {
+            root.suppressHover =
+                false
+
+            root.open()
+        }
     }
 
     // ─────────────────────────────────────────
-    // Animation timing
+    // Clock update
+    // ─────────────────────────────────────────
+
+    Timer {
+        interval:
+            1000
+
+        running:
+            true
+
+        repeat:
+            true
+
+        onTriggered: {
+            root.currentTime =
+                new Date()
+        }
+    }
+
+    // ─────────────────────────────────────────
+    // Opening
     // ─────────────────────────────────────────
 
     Timer {
         id: contentDelay
 
-        interval: 300
-        repeat: false
+        interval:
+            210
+
+        repeat:
+            false
 
         onTriggered: {
-            root.contentVisible = true
+            calendarContent.opacity =
+                1.0
         }
     }
 
     Timer {
-        id: collapseDelay
+        id: focusDelay
 
-        interval: 200
-        repeat: false
+        interval:
+            50
+
+        repeat:
+            false
 
         onTriggered: {
-            root.expanded = false
+            root.forceActiveFocus()
+        }
+    }
+
+    // ═════════════════════════════════════════
+    // Close choreography
+    // ═════════════════════════════════════════
+
+    SequentialAnimation {
+        id: closeAnimation
+
+        // ─────────────────────────────────────
+        // 1. Calendar disappears
+        // ─────────────────────────────────────
+
+        NumberAnimation {
+            target:
+                calendarContent
+
+            property:
+                "opacity"
+
+            to:
+                0.0
+
+            duration:
+                90
+
+            easing.type:
+                Easing.OutCubic
+        }
+
+        // ═════════════════════════════════════
+        // 2. Base wipe + bounce together
+        // ═════════════════════════════════════
+
+        ParallelAnimation {
+
+            NumberAnimation {
+                target:
+                    root
+
+                property:
+                    "closeFillTop"
+
+                from:
+                    root.expandedHeaderHeight
+
+                to:
+                    root.expandedEdgeThickness
+
+                duration:
+                    260
+
+                easing.type:
+                    Easing.InOutCubic
+            }
+
+            SequentialAnimation {
+
+                NumberAnimation {
+                    target:
+                        root
+
+                    property:
+                        "closeBounceScale"
+
+                    from:
+                        1.0
+
+                    to:
+                        0.965
+
+                    duration:
+                        70
+
+                    easing.type:
+                        Easing.InCubic
+                }
+
+                NumberAnimation {
+                    target:
+                        root
+
+                    property:
+                        "closeBounceScale"
+
+                    from:
+                        0.965
+
+                    to:
+                        1.075
+
+                    duration:
+                        190
+
+                    easing.type:
+                        Easing.OutBack
+
+                    easing.overshoot:
+                        1.45
+                }
+            }
+        }
+
+        // Base fully established.
+
+        ScriptAction {
+            script: {
+                root.collapseBase =
+                    true
+            }
+        }
+
+        // ═════════════════════════════════════
+        // 3. Recovery + shrink together
+        // ═════════════════════════════════════
+
+        ParallelAnimation {
+
+            NumberAnimation {
+                target:
+                    root
+
+                property:
+                    "closeBounceScale"
+
+                from:
+                    1.075
+
+                to:
+                    1.0
+
+                duration:
+                    280
+
+                easing.type:
+                    Easing.OutCubic
+            }
+
+            SequentialAnimation {
+                ScriptAction {
+                    script: {
+                        root.shrinking =
+                            true
+                    }
+                }
+
+                PauseAnimation {
+                    duration:
+                        280
+                }
+            }
+        }
+
+        // ═════════════════════════════════════
+        // 4. Compact state
+        // ═════════════════════════════════════
+
+        ScriptAction {
+            script: {
+                root.suppressHover =
+                    true
+
+                root.expanded =
+                    false
+
+                root.closing =
+                    false
+
+                root.shrinking =
+                    false
+
+                root.collapseBase =
+                    true
+
+                root.closeFillTop =
+                    root.expandedHeaderHeight
+
+                root.closeBounceScale =
+                    1.0
+
+                calendarContent.opacity =
+                    0.0
+            }
         }
     }
 }
