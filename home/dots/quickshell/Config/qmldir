@@ -1,0 +1,4 @@
+module Config
+
+singleton Colors 1.0 Colors.qml
+singleton Appearance 1.0 Appearance.qml

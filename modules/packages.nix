@@ -12,10 +12,13 @@
     btop
     fastfetch
     pciutils
+    grim
     
-    # Editor
+    # Editing
     geany
-
+	gimp
+    audacity
+    
     # Desktop apps
     nemo
     qbittorrent
@@ -23,9 +26,15 @@
     quickshell
     librewolf
     lollypop
+    anki
+    calibre
+    
     
     # Utilities
     hyprpaper
-    imv
+    imv # image viewer
+    ddcutil # for brightness
+    brightnessctl # also for brightness
+    playerctl
     ];
 }

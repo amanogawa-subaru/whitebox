@@ -47,4 +47,10 @@ in
   home-manager.useUserPackages = true;
 
   home-manager.users.subaru = import ../home/home.nix;
+  
+  # I2C support for external monitor control
+  hardware.i2c.enable = true;
+  
+  # PAM for lockscreen
+  security.pam.services.hyprlock = {};
 }

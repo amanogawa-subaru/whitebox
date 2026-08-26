@@ -11,5 +11,6 @@
     noto-fonts-cjk-serif
     nerd-fonts.jetbrains-mono
     nerd-fonts.meslo-lg
+    nerd-fonts.symbols-only
   ];
 }

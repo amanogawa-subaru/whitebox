@@ -5,6 +5,8 @@
 {
   programs.firefox.enable = true;
   
+  programs.hyprlock.enable = true;
+  
   services.mullvad-vpn = {
     enable = true;
     package = pkgs.mullvad-vpn;
