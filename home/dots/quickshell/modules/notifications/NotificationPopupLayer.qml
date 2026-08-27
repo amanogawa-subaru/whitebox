@@ -244,7 +244,7 @@ Scope {
          * prevents the 1.08 / 1.07 bounce scales
          * from being clipped by the PopupWindow.
          */
-        width:
+        implicitWidth:
             root.popupWidth
             + root.bouncePadding * 2
 
@@ -255,7 +255,7 @@ Scope {
          * the bounce also extends slightly above
          * and below its normal bounds.
          */
-        height:
+        implicitHeight:
             Math.max(
                 1,
                 popupColumn.implicitHeight

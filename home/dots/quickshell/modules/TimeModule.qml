@@ -289,14 +289,39 @@ FocusScope {
 			width:
 				visualRoot.width
 
+			/*
+			 * Keep the persistent clock slot at compact
+			 * height at all times. In expanded mode it is
+			 * vertically centered inside the taller header,
+			 * then smoothly returns to y=0 while shrinking.
+			 *
+			 * This avoids the final-frame position jump
+			 * caused by changing the slot's height only
+			 * after expanded becomes false.
+			 */
 			height:
-				root.expanded
-					? root.expandedHeaderHeight
-					: Appearance.moduleHeight
+				Appearance.moduleHeight
 
-			anchors {
-				left: parent.left
-				top: parent.top
+			anchors.left:
+				parent.left
+
+			y:
+				root.expanded
+				&& !root.shrinking
+					? (
+						root.expandedHeaderHeight
+						- Appearance.moduleHeight
+					) / 2
+					: 0
+
+			Behavior on y {
+				NumberAnimation {
+					duration:
+						280
+
+					easing.type:
+						Easing.OutCubic
+				}
 			}
 
 			Text {
@@ -365,7 +390,7 @@ FocusScope {
             id: calendarCard
 
             z:
-                3
+                6
 
             visible:
                 root.expanded
@@ -1047,32 +1072,34 @@ FocusScope {
     SequentialAnimation {
         id: closeAnimation
 
-        // ─────────────────────────────────────
-        // 1. Calendar disappears
-        // ─────────────────────────────────────
-
-        NumberAnimation {
-            target:
-                calendarContent
-
-            property:
-                "opacity"
-
-            to:
-                0.0
-
-            duration:
-                90
-
-            easing.type:
-                Easing.OutCubic
-        }
-
         // ═════════════════════════════════════
-        // 2. Base wipe + bounce together
+        // 1. Content fade + base wipe + bounce
+        //
+        // Matches UtilityModule: expanded content
+        // dissolves visibly while the base rises
+        // underneath the persistent header/icon.
         // ═════════════════════════════════════
 
         ParallelAnimation {
+            NumberAnimation {
+                target:
+                    calendarContent
+
+                property:
+                    "opacity"
+
+                from:
+                    1.0
+
+                to:
+                    0.0
+
+                duration:
+                    220
+
+                easing.type:
+                    Easing.InOutCubic
+            }
 
             NumberAnimation {
                 target:
@@ -1095,7 +1122,6 @@ FocusScope {
             }
 
             SequentialAnimation {
-
                 NumberAnimation {
                     target:
                         root
@@ -1141,7 +1167,8 @@ FocusScope {
             }
         }
 
-        // Base fully established.
+        // Base is fully established under the
+        // persistent icon/header before shrink.
 
         ScriptAction {
             script: {
@@ -1151,11 +1178,10 @@ FocusScope {
         }
 
         // ═════════════════════════════════════
-        // 3. Recovery + shrink together
+        // 2. Bounce recovery + shrink together
         // ═════════════════════════════════════
 
         ParallelAnimation {
-
             NumberAnimation {
                 target:
                     root
@@ -1192,7 +1218,7 @@ FocusScope {
         }
 
         // ═════════════════════════════════════
-        // 4. Compact state
+        // 3. Compact state
         // ═════════════════════════════════════
 
         ScriptAction {
@@ -1220,6 +1246,7 @@ FocusScope {
 
                 calendarContent.opacity =
                     0.0
+
             }
         }
     }

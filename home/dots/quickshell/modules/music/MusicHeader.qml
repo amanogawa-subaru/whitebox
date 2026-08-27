@@ -19,6 +19,12 @@ Item {
             ? root.expandedHeaderHeight
             : Appearance.moduleHeight
 
+    FontMetrics {
+        id: musicIconMetrics
+        font.family: "Symbols Nerd Font"
+        font.pixelSize: Appearance.iconSize
+    }
+
     Text {
         id: musicIcon
 
@@ -33,7 +39,7 @@ Item {
 
         width:
             root.backend && root.backend.hasPlayer
-                ? implicitWidth
+                ? musicIconMetrics.advanceWidth(text)
                 : parent.width
 
         text: "󰎈"

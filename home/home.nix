@@ -59,7 +59,6 @@
   
   # Dotfiles
   xdg.configFile = {
-    "hypr".source = ./dots/hypr;
     "kitty".source = ./dots/kitty;
     "fastfetch".source = ./dots/fastfetch;
     "quickshell".source = ./dots/quickshell;
@@ -102,19 +101,5 @@
     };
   };
   
-  # Clipboard service
-  systemd.user.services.cliphist = {
-    Unit = {
-      Description = "Clipboard history";
-    };
-
-    Service = {
-      ExecStart =
-        "${pkgs.wl-clipboard}/bin/wl-paste --watch ${pkgs.cliphist}/bin/cliphist store";
-
-      Restart = "on-failure";
-      RestartSec = 2;
-    };
-  };
 
 }

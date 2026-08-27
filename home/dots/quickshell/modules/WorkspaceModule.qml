@@ -580,10 +580,11 @@ FocusScope {
             id: overviewCard
 
             z:
-                3
+                6
 
             visible:
                 root.expanded
+                && !root.shrinking
 
             x:
                 root.expandedEdgeThickness
@@ -944,32 +945,34 @@ FocusScope {
     SequentialAnimation {
         id: closeAnimation
 
-        // ─────────────────────────────────────
-        // 1. Cards disappear
-        // ─────────────────────────────────────
-
-        NumberAnimation {
-            target:
-                overviewContent
-
-            property:
-                "opacity"
-
-            to:
-                0.0
-
-            duration:
-                90
-
-            easing.type:
-                Easing.OutCubic
-        }
-
         // ═════════════════════════════════════
-        // 2. Base wipe + bounce together
+        // 1. Content fade + base wipe + bounce
+        //
+        // Matches UtilityModule: expanded content
+        // dissolves visibly while the base rises
+        // underneath the persistent header/icon.
         // ═════════════════════════════════════
 
         ParallelAnimation {
+            NumberAnimation {
+                target:
+                    overviewContent
+
+                property:
+                    "opacity"
+
+                from:
+                    1.0
+
+                to:
+                    0.0
+
+                duration:
+                    220
+
+                easing.type:
+                    Easing.InOutCubic
+            }
 
             NumberAnimation {
                 target:
@@ -992,9 +995,6 @@ FocusScope {
             }
 
             SequentialAnimation {
-
-                // Anticipation
-
                 NumberAnimation {
                     target:
                         root
@@ -1014,8 +1014,6 @@ FocusScope {
                     easing.type:
                         Easing.InCubic
                 }
-
-                // Spring outward
 
                 NumberAnimation {
                     target:
@@ -1042,7 +1040,8 @@ FocusScope {
             }
         }
 
-        // Base is now established underneath.
+        // Base is fully established under the
+        // persistent icon/header before shrink.
 
         ScriptAction {
             script: {
@@ -1052,11 +1051,10 @@ FocusScope {
         }
 
         // ═════════════════════════════════════
-        // 3. Recovery + shrink together
+        // 2. Bounce recovery + shrink together
         // ═════════════════════════════════════
 
         ParallelAnimation {
-
             NumberAnimation {
                 target:
                     root
@@ -1093,7 +1091,7 @@ FocusScope {
         }
 
         // ═════════════════════════════════════
-        // 4. Compact
+        // 3. Compact state
         // ═════════════════════════════════════
 
         ScriptAction {
@@ -1121,6 +1119,7 @@ FocusScope {
 
                 overviewContent.opacity =
                     0.0
+
             }
         }
     }

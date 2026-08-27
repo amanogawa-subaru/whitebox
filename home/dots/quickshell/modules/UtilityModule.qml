@@ -242,7 +242,7 @@ FocusScope {
             false
 
         root.compactHeaderMode =
-            false
+            true
 
         header.opacity =
             1.0
@@ -488,6 +488,14 @@ FocusScope {
     }
 
     Behavior on height {
+        enabled:
+            root.closing
+            || !(
+                root.expanded
+                && root.activeTab === "power"
+                && powerModule.deviceSelectorAnimating
+            )
+
         NumberAnimation {
             duration:
                 280
@@ -880,14 +888,95 @@ FocusScope {
                 true
 
 
-            Item {
-                id: contentContainer
 
-                anchors.fill:
-                    parent
+        }
 
-                opacity:
-                    1.0
+        // ═════════════════════════════════════
+        // Closing base wipe
+        //
+        // Mirrors TimeModule: a dedicated base
+        // layer grows upward over the active
+        // accent before the module shrinks.
+        // ═════════════════════════════════════
+
+        Rectangle {
+            id: closeFill
+
+            z:
+                5
+
+            visible:
+                root.closing
+
+            x:
+                Appearance.borderWidth
+
+            y:
+                root.closeFillTop
+
+            width:
+                Math.max(
+                    0,
+                    visualRoot.width
+                    - Appearance.borderWidth * 2
+                )
+
+            height:
+                Math.max(
+                    0,
+                    visualRoot.height
+                    - root.closeFillTop
+                    - Appearance.borderWidth
+                )
+
+            radius:
+                Math.max(
+                    0,
+                    Appearance.moduleRadius
+                    - Appearance.borderWidth
+                )
+
+            color:
+                Colors.base
+        }
+
+        Item {
+                    id: contentContainer
+
+                    /*
+                     * Keep actual controls above closeFill so their
+                     * opacity animation remains visible while the
+                     * base wipe rises underneath them.
+                     */
+                    z:
+                6
+
+                    x:
+                Appearance.borderWidth
+
+                    y:
+                root.headerHeight
+
+                    width:
+                Math.max(
+                    0,
+                    visualRoot.width
+                    - Appearance.borderWidth * 2
+                )
+
+                    height:
+                Math.max(
+                    0,
+                    visualRoot.height
+                    - root.headerHeight
+                    - Appearance.borderWidth
+                )
+
+                    clip:
+                true
+
+                    opacity:
+                1.0
 
 
                 ClipboardModule {
@@ -972,57 +1061,7 @@ FocusScope {
                     onLockRequested:
                         root.lockSession()
                 }
-            }
-        }
-
-        // ═════════════════════════════════════
-        // Closing base wipe
-        //
-        // Mirrors TimeModule: a dedicated base
-        // layer grows upward over the active
-        // accent before the module shrinks.
-        // ═════════════════════════════════════
-
-        Rectangle {
-            id: closeFill
-
-            z:
-                5
-
-            visible:
-                root.closing
-
-            x:
-                Appearance.borderWidth
-
-            y:
-                root.closeFillTop
-
-            width:
-                Math.max(
-                    0,
-                    visualRoot.width
-                    - Appearance.borderWidth * 2
-                )
-
-            height:
-                Math.max(
-                    0,
-                    visualRoot.height
-                    - root.closeFillTop
-                    - Appearance.borderWidth
-                )
-
-            radius:
-                Math.max(
-                    0,
-                    Appearance.moduleRadius
-                    - Appearance.borderWidth
-                )
-
-            color:
-                Colors.base
-        }
+                    }
     }
 
 
@@ -1094,20 +1133,23 @@ FocusScope {
     SequentialAnimation {
         id: closeAnimation
 
-        /*
-         * Lock requests wait here instead of using a
-         * hard-coded animation duration. By this point
-         * the module is fully compact and all geometry
-         * Behaviors have settled.
-         */
         onFinished: {
             if (root.lockPending)
                 lockDelay.restart()
         }
 
-        // 1. Expanded content and expanded header disappear together.
+        // ═════════════════════════════════════
+        // 1. Fade + wipe + bounce-out together.
+        //
+        // No dead time: the body begins fading at
+        // the same moment the shell starts moving.
+        // Geometry itself waits until the outward
+        // bounce has completed so the bounce remains
+        // visually readable.
+        // ═════════════════════════════════════
 
         ParallelAnimation {
+
             NumberAnimation {
                 target:
                     contentContainer
@@ -1115,37 +1157,19 @@ FocusScope {
                 property:
                     "opacity"
 
-                to:
-                    0.0
-
-                duration:
-                    90
-
-                easing.type:
-                    Easing.OutCubic
-            }
-
-            NumberAnimation {
-                target:
-                    header
-
-                property:
-                    "opacity"
+                from:
+                    1.0
 
                 to:
                     0.0
 
                 duration:
-                    90
+                    220
 
                 easing.type:
-                    Easing.OutCubic
+                    Easing.InOutCubic
             }
-        }
 
-        // 2. Base wipe + anticipation/pop.
-
-        ParallelAnimation {
             NumberAnimation {
                 target:
                     root
@@ -1212,43 +1236,28 @@ FocusScope {
             }
         }
 
-        // Base is fully established. Switch the header to compact colors.
+
+        // The base wipe now completely covers the
+        // accented shell. Start changing the shell
+        // itself to base while that cover remains
+        // visible during the entire shrink phase.
 
         ScriptAction {
             script: {
                 root.collapseBase =
                     true
-
-                root.compactHeaderMode =
-                    true
             }
         }
 
-        // 3. Reveal compact header while the module
-        //    immediately begins shrinking. This removes
-        //    the visible "hang" between reveal and collapse.
+
+        // ═════════════════════════════════════
+        // 2. Recover + shrink together.
+        //
+        // This is the WorkspaceModule bounce-out:
+        // 1.075 -> 1.0 while geometry collapses.
+        // ═════════════════════════════════════
 
         ParallelAnimation {
-            NumberAnimation {
-                target:
-                    header
-
-                property:
-                    "opacity"
-
-                from:
-                    0.0
-
-                to:
-                    1.0
-
-                duration:
-                    95
-
-                easing.type:
-                    Easing.OutCubic
-            }
-
             NumberAnimation {
                 target:
                     root
@@ -1263,18 +1272,13 @@ FocusScope {
                     1.0
 
                 duration:
-                    220
+                    280
 
                 easing.type:
                     Easing.OutCubic
             }
 
             SequentialAnimation {
-                PauseAnimation {
-                    duration:
-                        20
-                }
-
                 ScriptAction {
                     script: {
                         root.shrinking =
@@ -1284,12 +1288,20 @@ FocusScope {
 
                 PauseAnimation {
                     duration:
-                        200
+                        280
                 }
             }
         }
 
-        // 4. Compact state.
+
+        // ═════════════════════════════════════
+        // 3. Compact state.
+        //
+        // By now the outer shell's 150 ms color
+        // Behavior has long since completed, so
+        // hiding closeFill cannot expose an accent
+        // flash.
+        // ═════════════════════════════════════
 
         ScriptAction {
             script: {

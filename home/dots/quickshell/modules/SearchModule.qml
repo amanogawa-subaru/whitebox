@@ -512,7 +512,7 @@ Item {
         Item {
             id: expandedHeader
 
-            z: 5
+            z: 7
 
             visible:
                 root.expanded
@@ -538,8 +538,8 @@ Item {
 
             Behavior on opacity {
                 NumberAnimation {
-                    duration: 90
-                    easing.type: Easing.OutCubic
+                    duration: 220
+                    easing.type: Easing.InOutCubic
                 }
             }
 
@@ -708,10 +708,11 @@ Item {
         Rectangle {
             id: resultsCard
 
-            z: 3
+            z: 6
 
             visible:
                 root.expanded
+                && !root.shrinking
 
             x:
                 root.expandedEdgeThickness
@@ -1190,34 +1191,34 @@ Item {
     SequentialAnimation {
         id: closeAnimation
 
-        // ─────────────────────────────────────
-        // 1. Fade list
-        // ─────────────────────────────────────
-
-        NumberAnimation {
-            target:
-                resultsContent
-
-            property:
-                "opacity"
-
-            to:
-                0.0
-
-            duration:
-                90
-
-            easing.type:
-                Easing.OutCubic
-        }
-
         // ═════════════════════════════════════
-        // 2. WIPE + BOUNCE TOGETHER
+        // 1. Content fade + base wipe + bounce
+        //
+        // Matches UtilityModule: expanded content
+        // dissolves visibly while the base rises
+        // underneath the persistent header/icon.
         // ═════════════════════════════════════
 
         ParallelAnimation {
+            NumberAnimation {
+                target:
+                    resultsContent
 
-            // Base rises through teal header
+                property:
+                    "opacity"
+
+                from:
+                    1.0
+
+                to:
+                    0.0
+
+                duration:
+                    220
+
+                easing.type:
+                    Easing.InOutCubic
+            }
 
             NumberAnimation {
                 target:
@@ -1239,12 +1240,7 @@ Item {
                     Easing.InOutCubic
             }
 
-            // Whole-module bounce
-
             SequentialAnimation {
-
-                // anticipation squash
-
                 NumberAnimation {
                     target:
                         root
@@ -1264,8 +1260,6 @@ Item {
                     easing.type:
                         Easing.InCubic
                 }
-
-                // spring outward
 
                 NumberAnimation {
                     target:
@@ -1292,7 +1286,8 @@ Item {
             }
         }
 
-        // Base has now fully taken over.
+        // Base is fully established under the
+        // persistent icon/header before shrink.
 
         ScriptAction {
             script: {
@@ -1302,11 +1297,10 @@ Item {
         }
 
         // ═════════════════════════════════════
-        // 3. RECOVERY + SHRINK TOGETHER
+        // 2. Bounce recovery + shrink together
         // ═════════════════════════════════════
 
         ParallelAnimation {
-
             NumberAnimation {
                 target:
                     root
@@ -1343,16 +1337,11 @@ Item {
         }
 
         // ═════════════════════════════════════
-        // 4. Compact state
+        // 3. Compact state
         // ═════════════════════════════════════
 
         ScriptAction {
             script: {
-                /*
-                 * Don't instantly treat the cursor
-                 * already sitting over Search as a
-                 * fresh hover.
-                 */
                 root.suppressHover =
                     true
 
@@ -1376,6 +1365,7 @@ Item {
 
                 resultsContent.opacity =
                     0.0
+
 
                 searchInput.text =
                     ""

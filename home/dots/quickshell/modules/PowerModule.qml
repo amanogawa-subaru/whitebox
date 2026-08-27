@@ -29,6 +29,31 @@ FocusScope {
     property string batteryText:
         ""
 
+    /*
+     * Exposed to UtilityModule so the outer container
+     * can follow the selector's animatedHeight directly
+     * instead of applying a second, lagging height
+     * animation on top of it.
+     */
+    readonly property bool deviceSelectorAnimating:
+        outputSelector.expanded
+        || outputSelector.animating
+        || inputSelector.expanded
+        || inputSelector.animating
+
+    function collapseDeviceSelectors() {
+        outputSelector.expanded =
+            false
+
+        inputSelector.expanded =
+            false
+    }
+
+    onVisibleChanged: {
+        if (!visible)
+            root.collapseDeviceSelectors()
+    }
+
     property real contentMargin:
         14 * Appearance.scale
 

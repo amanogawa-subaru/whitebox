@@ -292,10 +292,31 @@ FocusScope {
 
             z: 7
             width: visualRoot.width
+            height: Appearance.moduleHeight
 
-            anchors {
-                left: parent.left
-                top: parent.top
+            anchors.left:
+                parent.left
+
+            /*
+             * Same fix as TimeModule: keep the persistent
+             * header at compact height and smoothly move it
+             * from the expanded-header center to y=0 during
+             * shrink. This prevents the final-frame icon jump.
+             */
+            y:
+                root.expanded
+                && !root.shrinking
+                    ? (
+                        root.expandedHeaderHeight
+                        - Appearance.moduleHeight
+                    ) / 2
+                    : 0
+
+            Behavior on y {
+                NumberAnimation {
+                    duration: 280
+                    easing.type: Easing.OutCubic
+                }
             }
 
             backend: music

@@ -31,6 +31,7 @@
     swappy
     ffmpeg-headless # video thumbnails
     ffmpegthumbnailer # generates thumbnails
+    bulky # bulk rename
         
     # Desktop apps
     nemo-with-extensions
