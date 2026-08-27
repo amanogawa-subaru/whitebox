@@ -26,6 +26,15 @@ FocusScope {
         false
 
     /*
+     * Restoring an entry through wl-copy can cause
+     * cliphist to re-record it under a new numeric ID.
+     * If the restored entry was pinned, migrate that
+     * pin to the new ID after the history refresh.
+     */
+    property string pendingPinnedRestoreId:
+        ""
+
+    /*
      * cliphist has no native pin concept, so pins
      * are a lightweight Quickshell-side feature.
      * IDs are persisted in the user's cache and
@@ -249,6 +258,46 @@ FocusScope {
                     })
                 }
 
+                /*
+                 * A restored clipboard item is re-added by
+                 * cliphist as the newest entry. Preserve a
+                 * pin across that ID change instead of
+                 * leaving the pin attached to the stale ID.
+                 */
+                if (
+                    root.pendingPinnedRestoreId !== ""
+                    && result.length > 0
+                ) {
+                    const oldId =
+                        root.pendingPinnedRestoreId
+
+                    const newId =
+                        String(result[0].id)
+
+                    if (newId !== oldId) {
+                        const next =
+                            root.pinnedIds
+                                .filter(id =>
+                                    String(id) !== oldId
+                                )
+
+                        if (
+                            next.indexOf(newId)
+                            < 0
+                        ) {
+                            next.push(newId)
+                        }
+
+                        root.pinnedIds =
+                            next
+
+                        root.savePins()
+                    }
+
+                    root.pendingPinnedRestoreId =
+                        ""
+                }
+
                 root.entries =
                     result
 
@@ -264,6 +313,14 @@ FocusScope {
     // ═════════════════════════════════════════
 
     function restoreEntry(id) {
+        const stringId =
+            String(id)
+
+        root.pendingPinnedRestoreId =
+            root.isPinned(stringId)
+                ? stringId
+                : ""
+
         /*
          * cliphist IDs are numeric, but quote it
          * anyway so this remains harmless if the
@@ -273,7 +330,7 @@ FocusScope {
             "sh",
             "-c",
             "cliphist decode "
-                + "'" + id.replace(/'/g, "'\\''") + "'"
+                + "'" + stringId.replace(/'/g, "'\\''") + "'"
                 + " | wl-copy"
         ]
 
@@ -284,13 +341,21 @@ FocusScope {
     Process {
         id: restoreProcess
 
-        onExited: {
-            /*
-             * Refresh because wl-copy itself may
-             * cause cliphist to update ordering.
-             */
-            refresh()
-        }
+        onExited:
+            restoreRefreshTimer.restart()
+    }
+
+    Timer {
+        id: restoreRefreshTimer
+
+        interval:
+            120
+
+        repeat:
+            false
+
+        onTriggered:
+            root.refresh()
     }
 
 
