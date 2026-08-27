@@ -336,12 +336,8 @@ FocusScope {
         Rectangle {
             id: bodyCard
 
-            // Match TimeModule: content/card above closeFill,
-            // persistent MusicHeader remains above both.
-            z: 6
-            visible:
-                root.expanded
-                && !root.shrinking
+            z: 3
+            visible: root.expanded
 
             x: root.expandedEdgeThickness
             y: root.expandedHeaderHeight
@@ -527,181 +523,83 @@ FocusScope {
     SequentialAnimation {
         id: closeAnimation
 
-        // ═════════════════════════════════════
-        // 1. Content fade + base wipe + bounce
-        //
-        // Matches Time/Utility: expanded content
-        // dissolves visibly while the base rises
-        // underneath the persistent header/icon.
-        // ═════════════════════════════════════
+        NumberAnimation {
+            target: expandedContent
+            property: "opacity"
+            to: 0.0
+            duration: 90
+            easing.type: Easing.OutCubic
+        }
 
         ParallelAnimation {
             NumberAnimation {
-                target:
-                    expandedContent
-
-                property:
-                    "opacity"
-
-                from:
-                    1.0
-
-                to:
-                    0.0
-
-                duration:
-                    220
-
-                easing.type:
-                    Easing.InOutCubic
-            }
-
-            NumberAnimation {
-                target:
-                    root
-
-                property:
-                    "closeFillTop"
-
-                from:
-                    root.expandedHeaderHeight
-
-                to:
-                    root.expandedEdgeThickness
-
-                duration:
-                    260
-
-                easing.type:
-                    Easing.InOutCubic
+                target: root
+                property: "closeFillTop"
+                from: root.expandedHeaderHeight
+                to: root.expandedEdgeThickness
+                duration: 260
+                easing.type: Easing.InOutCubic
             }
 
             SequentialAnimation {
                 NumberAnimation {
-                    target:
-                        root
-
-                    property:
-                        "closeBounceScale"
-
-                    from:
-                        1.0
-
-                    to:
-                        0.965
-
-                    duration:
-                        70
-
-                    easing.type:
-                        Easing.InCubic
+                    target: root
+                    property: "closeBounceScale"
+                    from: 1.0
+                    to: 0.965
+                    duration: 70
+                    easing.type: Easing.InCubic
                 }
 
                 NumberAnimation {
-                    target:
-                        root
-
-                    property:
-                        "closeBounceScale"
-
-                    from:
-                        0.965
-
-                    to:
-                        1.075
-
-                    duration:
-                        190
-
-                    easing.type:
-                        Easing.OutBack
-
-                    easing.overshoot:
-                        1.45
+                    target: root
+                    property: "closeBounceScale"
+                    from: 0.965
+                    to: 1.075
+                    duration: 190
+                    easing.type: Easing.OutBack
+                    easing.overshoot: 1.45
                 }
             }
         }
 
-        // Base is fully established under the
-        // persistent icon/header before shrink.
-
         ScriptAction {
             script: {
-                root.collapseBase =
-                    true
+                root.collapseBase = true
             }
         }
 
-        // ═════════════════════════════════════
-        // 2. Bounce recovery + shrink together
-        // ═════════════════════════════════════
-
         ParallelAnimation {
             NumberAnimation {
-                target:
-                    root
-
-                property:
-                    "closeBounceScale"
-
-                from:
-                    1.075
-
-                to:
-                    1.0
-
-                duration:
-                    280
-
-                easing.type:
-                    Easing.OutCubic
+                target: root
+                property: "closeBounceScale"
+                from: 1.075
+                to: 1.0
+                duration: 280
+                easing.type: Easing.OutCubic
             }
 
             SequentialAnimation {
                 ScriptAction {
                     script: {
-                        root.shrinking =
-                            true
+                        root.shrinking = true
                     }
                 }
 
-                PauseAnimation {
-                    duration:
-                        280
-                }
+                PauseAnimation { duration: 280 }
             }
         }
 
-        // ═════════════════════════════════════
-        // 3. Compact state
-        // ═════════════════════════════════════
-
         ScriptAction {
             script: {
-                root.suppressHover =
-                    true
-
-                root.expanded =
-                    false
-
-                root.closing =
-                    false
-
-                root.shrinking =
-                    false
-
-                root.collapseBase =
-                    true
-
-                root.closeFillTop =
-                    root.expandedHeaderHeight
-
-                root.closeBounceScale =
-                    1.0
-
-                expandedContent.opacity =
-                    0.0
-
+                root.suppressHover = true
+                root.expanded = false
+                root.closing = false
+                root.shrinking = false
+                root.collapseBase = true
+                root.closeFillTop = root.expandedHeaderHeight
+                root.closeBounceScale = 1.0
+                expandedContent.opacity = 0.0
             }
         }
     }

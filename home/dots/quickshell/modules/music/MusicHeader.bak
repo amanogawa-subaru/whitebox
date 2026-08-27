@@ -48,28 +48,14 @@ Item {
         horizontalAlignment: Text.AlignHCenter
 
         color: {
-            /*
-             * Active close wins so the persistent icon
-             * transitions base -> accent without vanishing.
-             */
-            if (root.closing)
-                return root.accentColor
+            if (!root.backend || !root.backend.hasPlayer)
+                return Colors.base
 
-            /*
-             * Once close has finished, hover must outrank
-             * collapseBase. collapseBase intentionally
-             * remains true in compact state, and letting it
-             * win would produce accent-on-accent after the
-             * first open/close cycle.
-             */
             if (root.hovered && !root.expanded)
                 return Colors.base
 
-            if (root.collapseBase)
+            if (root.closing || root.collapseBase)
                 return root.accentColor
-
-            if (!root.backend || !root.backend.hasPlayer)
-                return Colors.base
 
             if (root.expanded)
                 return Colors.base
@@ -78,27 +64,7 @@ Item {
         }
 
         Behavior on color {
-            /*
-             * Do not cross-fade the compact music icon
-             * against the shell during hover.
-             *
-             * The shell animates base <-> accent while
-             * this icon wants accent <-> base; animating
-             * both continuously makes them pass through
-             * the same midpoint color and visually vanish.
-             *
-             * Hover contrast changes immediately; closing
-             * and normal state changes retain the smooth
-             * color animation.
-             */
-            enabled:
-                !root.hovered
-                || root.expanded
-                || root.closing
-
-            ColorAnimation {
-                duration: 150
-            }
+            ColorAnimation { duration: 150 }
         }
     }
 
@@ -109,18 +75,6 @@ Item {
             root.backend
             && root.backend.hasPlayer
             && !root.expanded
-
-        opacity:
-            visible
-                ? 1.0
-                : 0.0
-
-        Behavior on opacity {
-            NumberAnimation {
-                duration: 180
-                easing.type: Easing.OutCubic
-            }
-        }
 
         anchors {
             left: musicIcon.right
