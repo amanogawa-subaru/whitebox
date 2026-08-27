@@ -320,6 +320,12 @@ FocusScope {
 
                     font.pixelSize:
                         Appearance.textSize - 2
+
+                    width:
+                        systemInfo.width
+
+                    horizontalAlignment:
+                        Text.AlignRight
                 }
 
                 Text {
