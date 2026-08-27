@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import Quickshell.Hyprland
 
 import "../Config"
 
@@ -28,6 +29,133 @@ Item {
      * during/after the geometry collapse.
      */
     property bool collapseBase: false
+
+    /*
+     * Launch only after Search has relinquished
+     * focus. Executing while the launcher still
+     * owns focus can make Hyprland associate the
+     * new client with the launcher context rather
+     * than the workspace the user was on.
+     */
+    property var pendingLaunchApp:
+        null
+
+    property string pendingWorkspace:
+        ""
+
+    function shellQuote(value) {
+        const text =
+            String(value)
+
+        return "'"
+            + text.replace(/'/g, "'\\''")
+            + "'"
+    }
+
+    function luaQuote(value) {
+        /*
+         * Produce a Lua double-quoted string.
+         */
+        return "\""
+            + String(value)
+                .replace(/\\/g, "\\\\")
+                .replace(/"/g, "\\\"")
+                .replace(/\n/g, "\\n")
+            + "\""
+    }
+
+    function commandString(app) {
+        let command =
+            app.command.slice()
+
+        if (app.runInTerminal) {
+            command =
+                [
+                    "kitty",
+                    "--"
+                ].concat(command)
+        }
+
+        let rendered =
+            command
+                .map(arg =>
+                    root.shellQuote(arg)
+                )
+                .join(" ")
+
+        if (
+            app.workingDirectory
+            && app.workingDirectory.length > 0
+        ) {
+            rendered =
+                "cd "
+                + root.shellQuote(
+                    app.workingDirectory
+                )
+                + " && exec "
+                + rendered
+        }
+
+        return rendered
+    }
+
+    function launchOnWorkspace(app, workspace) {
+        const command =
+            root.commandString(app)
+
+        /*
+         * Hyprland 0.55+ Lua config:
+         * use the Lua dispatcher syntax.
+         *
+         * Older Hyprland:
+         * retain the hyprlang exec-rule syntax.
+         */
+        if (Hyprland.usingLua) {
+            const request =
+                "hl.dsp.exec_cmd("
+                + root.luaQuote(command)
+                + ", { workspace = "
+                + root.luaQuote(workspace)
+                + " })"
+
+            Hyprland.dispatch(
+                request
+            )
+
+            return
+        }
+
+        Hyprland.dispatch(
+            "exec [workspace "
+                + workspace
+                + " silent] "
+                + command
+        )
+    }
+
+    function launchApp(app) {
+        if (!app)
+            return
+
+        /*
+         * Capture the real focused workspace NOW,
+         * before the launcher closes or focus moves.
+         */
+        const workspace =
+            Hyprland.focusedWorkspace
+
+        root.pendingWorkspace =
+            workspace
+                ? String(workspace.id)
+                : ""
+
+        root.pendingLaunchApp =
+            app
+
+        root.close()
+
+        launchDelay.restart()
+    }
 
     // ─────────────────────────────────────────
     // Design
@@ -541,13 +669,12 @@ Item {
 
                 Keys.onReturnPressed: event => {
                     if (appList.count > 0) {
-                        filteredApps
-                            .values[
-                                appList.currentIndex
-                            ]
-                            .execute()
-
-                        root.close()
+                        root.launchApp(
+                            filteredApps
+                                .values[
+                                    appList.currentIndex
+                                ]
+                        )
                     }
 
                     event.accepted = true
@@ -555,13 +682,12 @@ Item {
 
                 Keys.onEnterPressed: event => {
                     if (appList.count > 0) {
-                        filteredApps
-                            .values[
-                                appList.currentIndex
-                            ]
-                            .execute()
-
-                        root.close()
+                        root.launchApp(
+                            filteredApps
+                                .values[
+                                    appList.currentIndex
+                                ]
+                        )
                     }
 
                     event.accepted = true
@@ -819,8 +945,9 @@ Item {
                             }
 
                             onClicked: {
-                                modelData.execute()
-                                root.close()
+                                root.launchApp(
+                                    modelData
+                                )
                             }
                         }
                     }
@@ -950,6 +1077,78 @@ Item {
                         .includes(query)
                 })
     }
+
+    // ─────────────────────────────────────────
+    // Deferred application launch
+    // ─────────────────────────────────────────
+
+    Timer {
+        id: launchDelay
+
+        /*
+         * Close choreography is 90 + 260 + 280 ms.
+         * Launch immediately after it has completed
+         * so focus has returned to the current
+         * Hyprland workspace.
+         */
+        interval:
+            650
+
+        repeat:
+            false
+
+        onTriggered: {
+            if (!root.pendingLaunchApp)
+                return
+
+            const app =
+                root.pendingLaunchApp
+
+            const workspace =
+                root.pendingWorkspace
+
+            root.pendingLaunchApp =
+                null
+
+            root.pendingWorkspace =
+                ""
+
+            /*
+             * Normal case: explicit one-shot placement
+             * on the workspace captured at click time.
+             */
+            if (workspace !== "") {
+                root.launchOnWorkspace(
+                    app,
+                    workspace
+                )
+
+                return
+            }
+
+            /*
+             * Defensive fallback if Hyprland had no
+             * focused workspace for some reason.
+             */
+            if (app.runInTerminal) {
+                Quickshell.execDetached({
+                    command:
+                        [
+                            "kitty",
+                            "--"
+                        ].concat(app.command),
+
+                    workingDirectory:
+                        app.workingDirectory
+                })
+
+                return
+            }
+
+            app.execute()
+        }
+    }
+
 
     // ─────────────────────────────────────────
     // Opening timers

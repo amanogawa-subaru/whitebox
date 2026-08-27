@@ -8,30 +8,11 @@ import "controls"
 FocusScope {
     id: root
 
-    // ═════════════════════════════════════════
-    // State
-    // ═════════════════════════════════════════
+    property color accentColor:
+        Colors.red
 
-    property bool suppressHover: false
-
-    property bool hovered:
-        compactMouse.containsMouse
-        && !root.suppressHover
-
-    property bool expanded: false
-    property bool closing: false
-    property bool shrinking: false
-    property bool collapseBase: false
-
-    /*
-     * Used only for the Lock fast-close path.
-     *
-     * When true, width/height Behaviors are
-     * temporarily disabled so the module can
-     * become genuinely compact BEFORE Hyprlock
-     * appears.
-     */
-    property bool instantGeometry: false
+    signal closeRequested()
+    signal lockRequested()
 
     property string userName:
         "User"
@@ -42,21 +23,11 @@ FocusScope {
     property string uptimeText:
         "Up"
 
-    // ═════════════════════════════════════════
-    // Design
-    // ═════════════════════════════════════════
+    property bool hasBattery:
+        false
 
-    property color accentColor:
-        Colors.red
-
-    property real expandedWidth:
-        Appearance.powerExpandedWidth
-
-    property real expandedHeaderHeight:
-        72 * Appearance.scale
-
-    property real expandedEdgeThickness:
-        Appearance.borderWidth
+    property string batteryText:
+        ""
 
     property real contentMargin:
         14 * Appearance.scale
@@ -70,157 +41,22 @@ FocusScope {
     property real controlRowHeight:
         34 * Appearance.scale
 
-    property real closeFillTop:
-        root.expandedHeaderHeight
+    readonly property real identityHeight:
+        72 * Appearance.scale
 
-    property real closeBounceScale:
-        1.0
-
-    /*
-     * Identity visibility is completely
-     * independent of module geometry.
-     */
-    property real headerOpacity:
-        0.0
-
-    readonly property real bodyContentHeight:
-        controlColumn.implicitHeight
+    readonly property real implicitContentHeight:
+        identityHeight
+        + controlColumn.implicitHeight
         + root.contentMargin * 2
 
-    readonly property real expandedHeight:
-        root.expandedHeaderHeight
-        + root.expandedEdgeThickness
-        + root.bodyContentHeight
+    implicitHeight:
+        implicitContentHeight
+
+    height:
+        implicitHeight
 
     // ═════════════════════════════════════════
-    // Open
-    // ═════════════════════════════════════════
-
-    function open() {
-        closeAnimation.stop()
-        lockCloseAnimation.stop()
-
-        headerDelay.stop()
-        headerFadeIn.stop()
-
-        contentDelay.stop()
-        focusDelay.stop()
-
-        root.instantGeometry =
-            false
-
-        root.suppressHover =
-            false
-
-        root.closing =
-            false
-
-        root.shrinking =
-            false
-
-        root.collapseBase =
-            false
-
-        root.closeFillTop =
-            root.expandedHeaderHeight
-
-        root.closeBounceScale =
-            1.0
-
-        root.headerOpacity =
-            0.0
-
-        expandedContent.opacity =
-            0.0
-
-        root.expanded =
-            true
-
-        /*
-         * Wait until the shell is nearly fully
-         * expanded before revealing identity.
-         */
-        headerDelay.restart()
-
-        contentDelay.restart()
-        focusDelay.restart()
-    }
-
-    // ═════════════════════════════════════════
-    // Normal close
-    // ═════════════════════════════════════════
-
-    function close() {
-        if (
-            !root.expanded
-            || root.closing
-        ) {
-            return
-        }
-
-        headerDelay.stop()
-        headerFadeIn.stop()
-
-        contentDelay.stop()
-        focusDelay.stop()
-
-        root.closing =
-            true
-
-        root.shrinking =
-            false
-
-        root.collapseBase =
-            false
-
-        root.closeFillTop =
-            root.expandedHeaderHeight
-
-        root.closeBounceScale =
-            1.0
-
-        closeAnimation.restart()
-    }
-
-    // ═════════════════════════════════════════
-    // Lock fast-close
-    // ═════════════════════════════════════════
-
-    function lockSession() {
-        if (lockCloseAnimation.running)
-            return
-
-        /*
-         * Kill any normal animation path first.
-         */
-        closeAnimation.stop()
-
-        headerDelay.stop()
-        headerFadeIn.stop()
-
-        contentDelay.stop()
-        focusDelay.stop()
-
-        /*
-         * The special Lock animation will:
-         *
-         * 1. fade content,
-         * 2. snap Power completely compact,
-         * 3. launch Hyprlock.
-         */
-        lockCloseAnimation.restart()
-    }
-
-    Process {
-        id: lockProcess
-
-        command: [
-            "hyprlock"
-        ]
-    }
-
-    // ═════════════════════════════════════════
-    // Nested device selectors
+    // Device selectors
     // ═════════════════════════════════════════
 
     function toggleOutputDevices() {
@@ -243,69 +79,8 @@ FocusScope {
         inputSelector.open()
     }
 
-    Keys.onEscapePressed: event => {
-        if (root.expanded) {
-            root.close()
-
-            event.accepted =
-                true
-        }
-    }
-
     // ═════════════════════════════════════════
-    // Geometry
-    // ═════════════════════════════════════════
-
-    width:
-        root.expanded
-        && !root.shrinking
-            ? root.expandedWidth
-            : Appearance.moduleHeight
-
-    height:
-        root.expanded
-        && !root.shrinking
-            ? root.expandedHeight
-            : Appearance.moduleHeight
-
-    Behavior on width {
-        enabled:
-            !root.instantGeometry
-
-        NumberAnimation {
-            duration:
-                280
-
-            easing.type:
-                Easing.OutCubic
-        }
-    }
-
-    /*
-     * During normal selector expansion, the
-     * selector's animatedHeight already drives
-     * the shell smoothly.
-     *
-     * During lock fast-close, ALL geometry
-     * interpolation is disabled.
-     */
-    Behavior on height {
-        enabled:
-            !root.instantGeometry
-            && !outputSelector.animating
-            && !inputSelector.animating
-
-        NumberAnimation {
-            duration:
-                280
-
-            easing.type:
-                Easing.OutCubic
-        }
-    }
-
-    // ═════════════════════════════════════════
-    // Identity / uptime
+    // Identity
     // ═════════════════════════════════════════
 
     Process {
@@ -336,6 +111,70 @@ FocusScope {
                 ) {
                     root.hostName =
                         parts[1]
+                }
+            }
+        }
+    }
+
+    Process {
+        id: batteryProcess
+
+        command: [
+            "sh",
+            "-c",
+            "bat=$(find /sys/class/power_supply -maxdepth 1 -type l -name 'BAT*' 2>/dev/null | head -n1); "
+            + "if [ -n \"$bat\" ]; then "
+            + "cap=$(cat \"$bat/capacity\" 2>/dev/null); "
+            + "status=$(cat \"$bat/status\" 2>/dev/null); "
+            + "printf '%s\\n%s' \"$cap\" \"$status\"; fi"
+        ]
+
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const parts =
+                    text.trim().split("\n")
+
+                if (
+                    parts.length >= 2
+                    && parts[0].length > 0
+                ) {
+                    root.hasBattery =
+                        true
+
+                    const capacity =
+                        parts[0]
+
+                    const status =
+                        parts[1]
+
+                    let icon =
+                        "󰁹"
+
+                    if (status === "Charging")
+                        icon = "󰂄"
+                    else if (capacity <= 10)
+                        icon = "󰁺"
+                    else if (capacity <= 25)
+                        icon = "󰁻"
+                    else if (capacity <= 50)
+                        icon = "󰁾"
+                    else if (capacity <= 75)
+                        icon = "󰂀"
+                    else if (capacity <= 90)
+                        icon = "󰂂"
+
+                    root.batteryText =
+                        icon
+                        + " "
+                        + capacity
+                        + "% · "
+                        + status
+                } else {
+                    root.hasBattery =
+                        false
+
+                    root.batteryText =
+                        ""
                 }
             }
         }
@@ -373,1175 +212,486 @@ FocusScope {
         repeat:
             true
 
-        onTriggered:
+        onTriggered: {
             uptimeProcess.running = true
+            batteryProcess.running = true
+        }
     }
 
     Component.onCompleted: {
-        identityProcess.running =
-            true
-
-        uptimeProcess.running =
-            true
+        identityProcess.running = true
+        uptimeProcess.running = true
+        batteryProcess.running = true
     }
 
     // ═════════════════════════════════════════
-    // Visual root
+    // Identity header
     // ═════════════════════════════════════════
 
     Item {
-        id: visualRoot
+        id: identityHeader
 
-        anchors.fill:
-            parent
+        width:
+            parent.width
 
-        scale: {
-            if (root.closing)
-                return root.closeBounceScale
+        height:
+            root.identityHeight
 
-            if (
-                root.hovered
-                && !root.expanded
-            ) {
-                return 1.09
+        Row {
+            anchors {
+                left:
+                    parent.left
+
+                right:
+                    parent.right
+
+                leftMargin:
+                    root.contentMargin
+                    + 4 * Appearance.scale
+
+                rightMargin:
+                    root.contentMargin
+                    + 4 * Appearance.scale
+
+                verticalCenter:
+                    parent.verticalCenter
             }
 
-            return 1.0
-        }
+            Column {
+                width:
+                    parent.width
+                    - systemInfo.width
 
-        transformOrigin:
-            Item.Center
+                spacing:
+                    3 * Appearance.scale
 
-        Behavior on scale {
-            enabled:
-                !root.closing
-                && !root.instantGeometry
+                Text {
+                    text:
+                        root.userName
 
-            NumberAnimation {
-                duration:
-                    300
+                    color:
+                        Colors.text
 
-                easing.type:
-                    Easing.OutBack
+                    font.pixelSize:
+                        Appearance.textSize + 2
 
-                easing.overshoot:
-                    1.9
+                    font.bold:
+                        true
+                }
+
+                Text {
+                    text:
+                        root.hostName
+
+                    color:
+                        Colors.subtext0
+
+                    font.pixelSize:
+                        Appearance.textSize - 2
+                }
+            }
+
+            Column {
+                id: systemInfo
+
+                width:
+                    Math.max(
+                        uptimeLabel.implicitWidth,
+                        batteryLabel.visible
+                            ? batteryLabel.implicitWidth
+                            : 0
+                    )
+
+                spacing:
+                    3 * Appearance.scale
+
+                Text {
+                    id: batteryLabel
+
+                    visible:
+                        root.hasBattery
+
+                    text:
+                        root.batteryText
+
+                    color:
+                        Colors.subtext0
+
+                    font.family:
+                        "Symbols Nerd Font, sans-serif"
+
+                    font.pixelSize:
+                        Appearance.textSize - 2
+                }
+
+                Text {
+                    id: uptimeLabel
+
+                    text:
+                        root.uptimeText
+
+                    color:
+                        Colors.subtext0
+
+                    font.pixelSize:
+                        Appearance.textSize - 2
+                }
             }
         }
+    }
 
-        // ─────────────────────────────────────
-        // Outer shell
-        // ─────────────────────────────────────
+
+    // ═════════════════════════════════════════
+    // Controls
+    // ═════════════════════════════════════════
+
+    Column {
+        id: controlColumn
+
+        anchors {
+            left:
+                parent.left
+
+            right:
+                parent.right
+
+            top:
+                identityHeader.bottom
+
+            leftMargin:
+                root.contentMargin
+
+            rightMargin:
+                root.contentMargin
+
+            topMargin:
+                root.contentMargin
+        }
+
+        spacing:
+            root.contentSpacing
+
+        // Brightness
 
         Rectangle {
-            anchors.fill:
-                parent
-
-            radius:
-                Appearance.moduleRadius
-
-            border.width:
-                Appearance.borderWidth
-
-            border.color:
-                root.accentColor
-
-            color: {
-                if (
-                    root.hovered
-                    && !root.expanded
-                ) {
-                    return root.accentColor
-                }
-
-                if (root.collapseBase)
-                    return Colors.base
-
-                if (root.expanded)
-                    return root.accentColor
-
-                return Colors.base
-            }
-
-            Behavior on color {
-                enabled:
-                    !root.instantGeometry
-
-                ColorAnimation {
-                    duration:
-                        150
-                }
-            }
-        }
-
-        // ═════════════════════════════════════
-        // Compact power icon
-        // ═════════════════════════════════════
-
-        Text {
-            z:
-                8
-
-            visible:
-                !root.expanded
-
-            anchors.centerIn:
-                parent
-
-            text:
-                "󰐥"
-
-            font.family:
-                "Symbols Nerd Font"
-
-            font.pixelSize:
-                Appearance.iconSize
-
-            color:
-                root.hovered
-                    ? Colors.base
-                    : root.accentColor
-
-            Behavior on color {
-                ColorAnimation {
-                    duration:
-                        150
-                }
-            }
-        }
-
-        // ═════════════════════════════════════
-        // Expanded identity header
-        // ═════════════════════════════════════
-
-        Item {
-            id: identityHeader
-
-            z:
-                7
-
-            visible:
-                root.expanded
-
             width:
                 parent.width
 
             height:
-                root.expandedHeaderHeight
-
-            opacity:
-                root.headerOpacity
-
-            /*
-             * No Translate.
-             * No x animation.
-             * No y animation.
-             *
-             * Fade only.
-             */
-			Column {
-				anchors {
-					left:
-						parent.left
-
-					right:
-						parent.right
-
-					leftMargin:
-						root.contentMargin
-						+ 4 * Appearance.scale
-
-					rightMargin:
-						root.contentMargin
-						+ 4 * Appearance.scale
-
-					verticalCenter:
-						parent.verticalCenter
-				}
-
-				spacing:
-					3 * Appearance.scale
-
-				// Username
-				Text {
-					text:
-						root.userName
-
-					color:
-						Colors.base
-
-					font.pixelSize:
-						Appearance.textSize + 2
-
-					font.bold:
-						true
-				}
-
-				// Hostname + uptime
-				Row {
-					width:
-						parent.width
-
-					Text {
-						text:
-							root.hostName
-
-						color:
-							Qt.rgba(
-								Colors.base.r,
-								Colors.base.g,
-								Colors.base.b,
-								0.72
-							)
-
-						font.pixelSize:
-							Appearance.textSize - 2
-					}
-
-					Item {
-						width:
-							parent.width
-							- parent.children[0].width
-							- parent.children[2].width
-
-						height:
-							1
-					}
-
-					Text {
-						text:
-							root.uptimeText
-
-						color:
-							Qt.rgba(
-								Colors.base.r,
-								Colors.base.g,
-								Colors.base.b,
-								0.72
-							)
-
-						font.pixelSize:
-							Appearance.textSize - 2
-					}
-				}
-			}
-        }
-
-        // ═════════════════════════════════════
-        // Body
-        // ═════════════════════════════════════
-
-        Rectangle {
-            id: bodyCard
-
-            z:
-                3
-
-            visible:
-                root.expanded
-
-            x:
-                root.expandedEdgeThickness
-
-            y:
-                root.expandedHeaderHeight
-
-            width:
-                Math.max(
-                    0,
-                    visualRoot.width
-                    - root.expandedEdgeThickness * 2
-                )
-
-            height:
-                Math.max(
-                    0,
-                    visualRoot.height
-                    - root.expandedHeaderHeight
-                    - root.expandedEdgeThickness
-                )
+                64 * Appearance.scale
 
             radius:
-                Math.max(
-                    0,
-                    Appearance.moduleRadius
-                    - root.expandedEdgeThickness
-                )
+                Appearance.controlRadius
 
             color:
-                Colors.base
+                Colors.surface0
 
-            clip:
-                true
+            BrightnessSlider {
+                anchors {
+                    left:
+                        parent.left
+
+                    right:
+                        parent.right
+
+                    verticalCenter:
+                        parent.verticalCenter
+
+                    leftMargin:
+                        root.controlCardPadding
+
+                    rightMargin:
+                        root.controlCardPadding
+                }
+
+                height:
+                    root.controlRowHeight
+            }
+        }
+
+        // Audio output
+
+        Rectangle {
+            width:
+                parent.width
+
+            height:
+                root.controlCardPadding * 2
+                + root.controlRowHeight
+                + (
+                    outputSelector.animatedHeight > 0
+                        ? 8 * Appearance.scale
+                        : 0
+                )
+                + outputSelector.animatedHeight
+
+            radius:
+                Appearance.controlRadius
+
+            color:
+                Colors.surface0
 
             Column {
-                id: expandedContent
-
-                width:
-                    parent.width
-                    - root.contentMargin * 2
-
                 anchors {
+                    left:
+                        parent.left
+
+                    right:
+                        parent.right
+
                     top:
                         parent.top
 
-                    horizontalCenter:
-                        parent.horizontalCenter
-
-                    topMargin:
-                        root.contentMargin
+                    margins:
+                        root.controlCardPadding
                 }
 
-                opacity:
-                    0.0
+                spacing:
+                    8 * Appearance.scale
 
-                transform: Translate {
-                    y:
-                        expandedContent.opacity > 0
-                            ? 0
-                            : 8 * Appearance.scale
+                Row {
+                    width:
+                        parent.width
 
-                    Behavior on y {
-                        NumberAnimation {
-                            duration:
-                                200
+                    height:
+                        root.controlRowHeight
 
-                            easing.type:
-                                Easing.OutCubic
+                    spacing:
+                        8 * Appearance.scale
+
+                    VolumeControl {
+                        width:
+                            parent.width
+                            - outputArrowButton.width
+                            - parent.spacing
+
+                        height:
+                            parent.height
+                    }
+
+                    Item {
+                        id: outputArrowButton
+
+                        width:
+                            30 * Appearance.scale
+
+                        height:
+                            parent.height
+
+                        Text {
+                            anchors.centerIn:
+                                parent
+
+                            text:
+                                outputSelector.expanded
+                                    ? "▴"
+                                    : "▾"
+
+                            color:
+                                outputArrowMouse.containsMouse
+                                    ? Colors.pink
+                                    : Colors.subtext0
+
+                            font.pixelSize:
+                                Appearance.textSize + 1
+
+                            scale:
+                                outputArrowMouse.containsMouse
+                                    ? 1.15
+                                    : 1.0
+
+                            Behavior on color {
+                                ColorAnimation {
+                                    duration: 130
+                                }
+                            }
+
+                            Behavior on scale {
+                                NumberAnimation {
+                                    duration: 180
+                                    easing.type: Easing.OutBack
+                                    easing.overshoot: 1.3
+                                }
+                            }
+                        }
+
+                        MouseArea {
+                            id: outputArrowMouse
+
+                            anchors.fill:
+                                parent
+
+                            hoverEnabled:
+                                true
+
+                            onClicked:
+                                root.toggleOutputDevices()
                         }
                     }
                 }
 
-                Behavior on opacity {
-                    NumberAnimation {
-                        duration:
-                            180
-
-                        easing.type:
-                            Easing.OutCubic
-                    }
-                }
-
-                Column {
-                    id: controlColumn
+                AudioDeviceSelector {
+                    id: outputSelector
 
                     width:
                         parent.width
 
-                    spacing:
-                        root.contentSpacing
-
-                    // ═════════════════════════
-                    // Brightness
-                    // ═════════════════════════
-
-                    Rectangle {
-                        width:
-                            parent.width
-
-                        height:
-                            64 * Appearance.scale
-
-                        radius:
-                            Appearance.controlRadius
-
-                        color:
-                            Colors.surface0
-
-                        BrightnessSlider {
-                            anchors {
-                                left:
-                                    parent.left
-
-                                right:
-                                    parent.right
-
-                                verticalCenter:
-                                    parent.verticalCenter
-
-                                leftMargin:
-                                    root.controlCardPadding
-
-                                rightMargin:
-                                    root.controlCardPadding
-                            }
-
-                            height:
-                                root.controlRowHeight
-                        }
-                    }
-
-                    // ═════════════════════════
-                    // Audio output
-                    // ═════════════════════════
-
-                    Rectangle {
-                        id: volumeCard
-
-                        width:
-                            parent.width
-
-                        height:
-                            root.controlCardPadding * 2
-                            + root.controlRowHeight
-                            + (
-                                outputSelector.animatedHeight > 0
-                                    ? 8 * Appearance.scale
-                                    : 0
-                            )
-                            + outputSelector.animatedHeight
-
-                        radius:
-                            Appearance.controlRadius
-
-                        color:
-                            Colors.surface0
-
-                        Column {
-                            anchors {
-                                left:
-                                    parent.left
-
-                                right:
-                                    parent.right
-
-                                top:
-                                    parent.top
-
-                                margins:
-                                    root.controlCardPadding
-                            }
-
-                            spacing:
-                                8 * Appearance.scale
-
-                            Row {
-                                width:
-                                    parent.width
-
-                                height:
-                                    root.controlRowHeight
-
-                                spacing:
-                                    8 * Appearance.scale
-
-                                VolumeControl {
-                                    width:
-                                        parent.width
-                                        - outputArrowButton.width
-                                        - parent.spacing
-
-                                    height:
-                                        parent.height
-                                }
-
-                                Item {
-                                    id: outputArrowButton
-
-                                    width:
-                                        30 * Appearance.scale
-
-                                    height:
-                                        parent.height
-
-                                    Text {
-                                        anchors.centerIn:
-                                            parent
-
-                                        text:
-                                            outputSelector.expanded
-                                                ? "▴"
-                                                : "▾"
-
-                                        color:
-                                            outputArrowMouse.containsMouse
-                                                ? Colors.pink
-                                                : Colors.subtext0
-
-                                        font.pixelSize:
-                                            Appearance.textSize + 1
-
-                                        scale:
-                                            outputArrowMouse.containsMouse
-                                                ? 1.15
-                                                : 1.0
-
-                                        Behavior on color {
-                                            ColorAnimation {
-                                                duration:
-                                                    130
-                                            }
-                                        }
-
-                                        Behavior on scale {
-                                            NumberAnimation {
-                                                duration:
-                                                    180
-
-                                                easing.type:
-                                                    Easing.OutBack
-
-                                                easing.overshoot:
-                                                    1.3
-                                            }
-                                        }
-                                    }
-
-                                    MouseArea {
-                                        id: outputArrowMouse
-
-                                        anchors.fill:
-                                            parent
-
-                                        hoverEnabled:
-                                            true
-
-                                        onClicked:
-                                            root.toggleOutputDevices()
-                                    }
-                                }
-                            }
-
-                            AudioDeviceSelector {
-                                id: outputSelector
-
-                                width:
-                                    parent.width
-
-                                deviceType:
-                                    "sink"
-
-                                accentColor:
-                                    Colors.pink
-                            }
-                        }
-                    }
-
-                    // ═════════════════════════
-                    // Microphone
-                    // ═════════════════════════
-
-                    Rectangle {
-                        id: micCard
-
-                        width:
-                            parent.width
-
-                        height:
-                            root.controlCardPadding * 2
-                            + root.controlRowHeight
-                            + (
-                                inputSelector.animatedHeight > 0
-                                    ? 8 * Appearance.scale
-                                    : 0
-                            )
-                            + inputSelector.animatedHeight
-
-                        radius:
-                            Appearance.controlRadius
-
-                        color:
-                            Colors.surface0
-
-                        Column {
-                            anchors {
-                                left:
-                                    parent.left
-
-                                right:
-                                    parent.right
-
-                                top:
-                                    parent.top
-
-                                margins:
-                                    root.controlCardPadding
-                            }
-
-                            spacing:
-                                8 * Appearance.scale
-
-                            Row {
-                                width:
-                                    parent.width
-
-                                height:
-                                    root.controlRowHeight
-
-                                spacing:
-                                    8 * Appearance.scale
-
-                                MicControl {
-                                    width:
-                                        parent.width
-                                        - inputArrowButton.width
-                                        - parent.spacing
-
-                                    height:
-                                        parent.height
-                                }
-
-                                Item {
-                                    id: inputArrowButton
-
-                                    width:
-                                        30 * Appearance.scale
-
-                                    height:
-                                        parent.height
-
-                                    Text {
-                                        anchors.centerIn:
-                                            parent
-
-                                        text:
-                                            inputSelector.expanded
-                                                ? "▴"
-                                                : "▾"
-
-                                        color:
-                                            inputArrowMouse.containsMouse
-                                                ? Colors.mauve
-                                                : Colors.subtext0
-
-                                        font.pixelSize:
-                                            Appearance.textSize + 1
-
-                                        scale:
-                                            inputArrowMouse.containsMouse
-                                                ? 1.15
-                                                : 1.0
-
-                                        Behavior on color {
-                                            ColorAnimation {
-                                                duration:
-                                                    130
-                                            }
-                                        }
-
-                                        Behavior on scale {
-                                            NumberAnimation {
-                                                duration:
-                                                    180
-
-                                                easing.type:
-                                                    Easing.OutBack
-
-                                                easing.overshoot:
-                                                    1.3
-                                            }
-                                        }
-                                    }
-
-                                    MouseArea {
-                                        id: inputArrowMouse
-
-                                        anchors.fill:
-                                            parent
-
-                                        hoverEnabled:
-                                            true
-
-                                        onClicked:
-                                            root.toggleInputDevices()
-                                    }
-                                }
-                            }
-
-                            AudioDeviceSelector {
-                                id: inputSelector
-
-                                width:
-                                    parent.width
-
-                                deviceType:
-                                    "source"
-
-                                accentColor:
-                                    Colors.mauve
-                            }
-                        }
-                    }
-
-                    // ═════════════════════════
-                    // Session / power actions
-                    // ═════════════════════════
-
-                    PowerActions {
-                        width:
-                            parent.width
-
-                        onLockRequested:
-                            root.lockSession()
-
-                        onCloseRequested:
-                            root.close()
-                    }
+                    deviceType:
+                        "sink"
+
+                    accentColor:
+                        Colors.pink
                 }
             }
         }
 
-        // ═════════════════════════════════════
-        // Normal closing base fill
-        // ═════════════════════════════════════
+        // Microphone
 
         Rectangle {
-            id: closeFill
-
-            z:
-                5
-
-            visible:
-                root.closing
-
-            x:
-                root.expandedEdgeThickness
-
-            y:
-                root.closeFillTop
-
             width:
-                Math.max(
-                    0,
-                    visualRoot.width
-                    - root.expandedEdgeThickness * 2
-                )
+                parent.width
 
             height:
-                Math.max(
-                    0,
-                    visualRoot.height
-                    - root.closeFillTop
-                    - root.expandedEdgeThickness
+                root.controlCardPadding * 2
+                + root.controlRowHeight
+                + (
+                    inputSelector.animatedHeight > 0
+                        ? 8 * Appearance.scale
+                        : 0
                 )
+                + inputSelector.animatedHeight
 
             radius:
-                Math.max(
-                    0,
-                    Appearance.moduleRadius
-                    - root.expandedEdgeThickness
-                )
+                Appearance.controlRadius
 
             color:
-                Colors.base
-        }
-    }
+                Colors.surface0
 
-    // ═════════════════════════════════════════
-    // Compact interaction
-    // ═════════════════════════════════════════
+            Column {
+                anchors {
+                    left:
+                        parent.left
 
-    MouseArea {
-        id: compactMouse
+                    right:
+                        parent.right
 
-        z:
-            20
+                    top:
+                        parent.top
 
-        visible:
-            !root.expanded
-
-        enabled:
-            !root.expanded
-
-        anchors.fill:
-            parent
-
-        hoverEnabled:
-            true
-
-        onExited:
-            root.suppressHover = false
-
-        onClicked:
-            root.open()
-    }
-
-    // ═════════════════════════════════════════
-    // Opening choreography
-    // ═════════════════════════════════════════
-
-    Timer {
-        id: headerDelay
-
-        interval:
-            220
-
-        repeat:
-            false
-
-        onTriggered:
-            headerFadeIn.restart()
-    }
-
-    NumberAnimation {
-        id: headerFadeIn
-
-        target:
-            root
-
-        property:
-            "headerOpacity"
-
-        from:
-            0.0
-
-        to:
-            1.0
-
-        duration:
-            180
-
-        easing.type:
-            Easing.OutCubic
-    }
-
-    Timer {
-        id: contentDelay
-
-        interval:
-            180
-
-        repeat:
-            false
-
-        onTriggered:
-            expandedContent.opacity = 1.0
-    }
-
-    Timer {
-        id: focusDelay
-
-        interval:
-            50
-
-        repeat:
-            false
-
-        onTriggered:
-            root.forceActiveFocus()
-    }
-
-    // ═════════════════════════════════════════
-    // FAST LOCK choreography
-    // ═════════════════════════════════════════
-
-    SequentialAnimation {
-        id: lockCloseAnimation
-
-        /*
-         * First remove everything visibly
-         * identifying the expanded state.
-         *
-         * Short enough to make Lock feel
-         * immediate, but not an ugly teleport.
-         */
-        ParallelAnimation {
-            NumberAnimation {
-                target:
-                    expandedContent
-
-                property:
-                    "opacity"
-
-                to:
-                    0.0
-
-                duration:
-                    100
-
-                easing.type:
-                    Easing.OutCubic
-            }
-
-            NumberAnimation {
-                target:
-                    root
-
-                property:
-                    "headerOpacity"
-
-                to:
-                    0.0
-
-                duration:
-                    100
-
-                easing.type:
-                    Easing.OutCubic
-            }
-        }
-
-        ScriptAction {
-            script: {
-                /*
-                 * IMPORTANT:
-                 *
-                 * Disable geometry Behaviors
-                 * BEFORE changing expanded.
-                 *
-                 * This means width + height SNAP
-                 * to the final compact geometry.
-                 */
-                root.instantGeometry =
-                    true
-
-                root.suppressHover =
-                    true
-
-                root.closing =
-                    false
-
-                root.shrinking =
-                    false
-
-                root.collapseBase =
-                    true
-
-                root.closeFillTop =
-                    root.expandedHeaderHeight
-
-                root.closeBounceScale =
-                    1.0
-
-                root.headerOpacity =
-                    0.0
-
-                expandedContent.opacity =
-                    0.0
-
-                outputSelector.close()
-                inputSelector.close()
-
-                /*
-                 * This assignment is now
-                 * instantaneous because the width
-                 * and height Behaviors are off.
-                 */
-                root.expanded =
-                    false
-            }
-        }
-
-        /*
-         * Give QML one frame to commit the compact
-         * geometry before re-enabling normal
-         * animations.
-         */
-        PauseAnimation {
-            duration:
-                16
-        }
-
-        ScriptAction {
-            script: {
-                root.instantGeometry =
-                    false
-
-                /*
-                 * NOW the module is fully compact.
-                 *
-                 * Only now do we hand control to
-                 * Hyprlock.
-                 */
-                lockProcess.running =
-                    true
-            }
-        }
-    }
-
-    // ═════════════════════════════════════════
-    // Normal closing choreography
-    // ═════════════════════════════════════════
-
-    SequentialAnimation {
-        id: closeAnimation
-
-        // 1. Fade header + controls in place
-
-        ParallelAnimation {
-            NumberAnimation {
-                target:
-                    expandedContent
-
-                property:
-                    "opacity"
-
-                to:
-                    0.0
-
-                duration:
-                    110
-
-                easing.type:
-                    Easing.OutCubic
-            }
-
-            NumberAnimation {
-                target:
-                    root
-
-                property:
-                    "headerOpacity"
-
-                to:
-                    0.0
-
-                duration:
-                    110
-
-                easing.type:
-                    Easing.OutCubic
-            }
-        }
-
-        // 2. Base fill + bounce simultaneously
-
-        ParallelAnimation {
-            NumberAnimation {
-                target:
-                    root
-
-                property:
-                    "closeFillTop"
-
-                from:
-                    root.expandedHeaderHeight
-
-                to:
-                    root.expandedEdgeThickness
-
-                duration:
-                    260
-
-                easing.type:
-                    Easing.InOutCubic
-            }
-
-            SequentialAnimation {
-                NumberAnimation {
-                    target:
-                        root
-
-                    property:
-                        "closeBounceScale"
-
-                    from:
-                        1.0
-
-                    to:
-                        0.965
-
-                    duration:
-                        70
-
-                    easing.type:
-                        Easing.InCubic
+                    margins:
+                        root.controlCardPadding
                 }
 
-                NumberAnimation {
-                    target:
-                        root
+                spacing:
+                    8 * Appearance.scale
 
-                    property:
-                        "closeBounceScale"
+                Row {
+                    width:
+                        parent.width
 
-                    from:
-                        0.965
+                    height:
+                        root.controlRowHeight
 
-                    to:
-                        1.075
+                    spacing:
+                        8 * Appearance.scale
 
-                    duration:
-                        190
+                    MicControl {
+                        width:
+                            parent.width
+                            - inputArrowButton.width
+                            - parent.spacing
 
-                    easing.type:
-                        Easing.OutBack
+                        height:
+                            parent.height
+                    }
 
-                    easing.overshoot:
-                        1.45
+                    Item {
+                        id: inputArrowButton
+
+                        width:
+                            30 * Appearance.scale
+
+                        height:
+                            parent.height
+
+                        Text {
+                            anchors.centerIn:
+                                parent
+
+                            text:
+                                inputSelector.expanded
+                                    ? "▴"
+                                    : "▾"
+
+                            color:
+                                inputArrowMouse.containsMouse
+                                    ? Colors.mauve
+                                    : Colors.subtext0
+
+                            font.pixelSize:
+                                Appearance.textSize + 1
+
+                            scale:
+                                inputArrowMouse.containsMouse
+                                    ? 1.15
+                                    : 1.0
+
+                            Behavior on color {
+                                ColorAnimation {
+                                    duration: 130
+                                }
+                            }
+
+                            Behavior on scale {
+                                NumberAnimation {
+                                    duration: 180
+                                    easing.type: Easing.OutBack
+                                    easing.overshoot: 1.3
+                                }
+                            }
+                        }
+
+                        MouseArea {
+                            id: inputArrowMouse
+
+                            anchors.fill:
+                                parent
+
+                            hoverEnabled:
+                                true
+
+                            onClicked:
+                                root.toggleInputDevices()
+                        }
+                    }
+                }
+
+                AudioDeviceSelector {
+                    id: inputSelector
+
+                    width:
+                        parent.width
+
+                    deviceType:
+                        "source"
+
+                    accentColor:
+                        Colors.mauve
                 }
             }
         }
 
-        ScriptAction {
-            script:
-                root.collapseBase = true
-        }
+        // Power actions
 
-        // 3. Bounce recovery + shrink together
+        PowerActions {
+            width:
+                parent.width
 
-        ParallelAnimation {
-            NumberAnimation {
-                target:
-                    root
+            onLockRequested:
+                root.lockRequested()
 
-                property:
-                    "closeBounceScale"
-
-                from:
-                    1.075
-
-                to:
-                    1.0
-
-                duration:
-                    280
-
-                easing.type:
-                    Easing.OutCubic
-            }
-
-            SequentialAnimation {
-                ScriptAction {
-                    script:
-                        root.shrinking = true
-                }
-
-                PauseAnimation {
-                    duration:
-                        280
-                }
-            }
-        }
-
-        // 4. Final compact state
-
-        ScriptAction {
-            script: {
-                root.suppressHover =
-                    true
-
-                root.expanded =
-                    false
-
-                root.closing =
-                    false
-
-                root.shrinking =
-                    false
-
-                root.collapseBase =
-                    true
-
-                root.closeFillTop =
-                    root.expandedHeaderHeight
-
-                root.closeBounceScale =
-                    1.0
-
-                root.headerOpacity =
-                    0.0
-
-                expandedContent.opacity =
-                    0.0
-
-                /*
-                 * Reset nested menus only after
-                 * normal close is fully complete.
-                 */
-                outputSelector.close()
-                inputSelector.close()
-            }
+            onCloseRequested:
+                root.closeRequested()
         }
     }
 }

@@ -7,12 +7,20 @@ import "../Config"
 Item {
     id: root
 
+    property bool embedded:
+        false
+
     property bool hovered:
         trayMouse.containsMouse
 
-    // ─────────────────────────────────────────
-    // Geometry
-    // ─────────────────────────────────────────
+    /*
+     * True briefly when we intentionally launch
+     * a systray context menu.
+     */
+    property bool menuGraceActive:
+        false
+
+    signal menuRequested()
 
     property real horizontalPadding:
         12 * Appearance.scale
@@ -29,7 +37,7 @@ Item {
     width:
         root.itemCount > 0
             ? trayRow.implicitWidth
-                + root.horizontalPadding * 2
+              + root.horizontalPadding * 2
             : 0
 
     height:
@@ -40,20 +48,25 @@ Item {
 
     Behavior on width {
         NumberAnimation {
-            duration: 280
-            easing.type: Easing.OutCubic
+            duration:
+                280
+
+            easing.type:
+                Easing.OutCubic
         }
     }
 
-    // ─────────────────────────────────────────
-    // Background
-    // ─────────────────────────────────────────
+
+    // ═════════════════════════════════════════
+    // Standalone background
+    // ═════════════════════════════════════════
 
     Rectangle {
-        id: background
-
         anchors.fill:
             parent
+
+        visible:
+            !root.embedded
 
         radius:
             Appearance.moduleRadius
@@ -77,16 +90,55 @@ Item {
 
         Behavior on scale {
             NumberAnimation {
-                duration: 300
-                easing.type: Easing.OutBack
-                easing.overshoot: 1.9
+                duration:
+                    300
+
+                easing.type:
+                    Easing.OutBack
+
+                easing.overshoot:
+                    1.9
             }
         }
     }
 
-    // ─────────────────────────────────────────
+
+    // ═════════════════════════════════════════
+    // Menu grace
+    // ═════════════════════════════════════════
+
+    function beginMenuGrace() {
+        root.menuGraceActive =
+            true
+
+        root.menuRequested()
+
+        menuGraceTimer.restart()
+    }
+
+    Timer {
+        id: menuGraceTimer
+
+        /*
+         * Native tray menus can steal focus slightly
+         * after display() returns. Keep the grace
+         * window alive long enough for that delayed
+         * FocusGrab clear to be ignored by shell.qml.
+         */
+        interval:
+            2000
+
+        repeat:
+            false
+
+        onTriggered:
+            root.menuGraceActive = false
+    }
+
+
+    // ═════════════════════════════════════════
     // Tray items
-    // ─────────────────────────────────────────
+    // ═════════════════════════════════════════
 
     Row {
         id: trayRow
@@ -115,13 +167,8 @@ Item {
                 property bool hovered:
                     itemMouse.containsMouse
 
-                // ─────────────────────────────
-                // Icon
-                // ─────────────────────────────
 
                 Image {
-                    id: icon
-
                     anchors.centerIn:
                         parent
 
@@ -150,16 +197,18 @@ Item {
 
                     Behavior on scale {
                         NumberAnimation {
-                            duration: 200
-                            easing.type: Easing.OutBack
-                            easing.overshoot: 1.4
+                            duration:
+                                200
+
+                            easing.type:
+                                Easing.OutBack
+
+                            easing.overshoot:
+                                1.4
                         }
                     }
                 }
 
-                // ─────────────────────────────
-                // Interaction
-                // ─────────────────────────────
 
                 MouseArea {
                     id: itemMouse
@@ -175,9 +224,11 @@ Item {
                         | Qt.RightButton
                         | Qt.MiddleButton
 
+
                     onClicked: mouse => {
                         if (!trayItem.modelData)
                             return
+
 
                         // ─────────────────────
                         // Right click
@@ -188,12 +239,16 @@ Item {
                             && trayItem.modelData.hasMenu
                         ) {
                             /*
-                             * The mouse coordinates are
-                             * local to this tiny tray item.
+                             * IMPORTANT:
                              *
-                             * Convert them to coordinates
-                             * relative to the PanelWindow.
+                             * Opening this native menu can
+                             * temporarily clear our panel's
+                             * HyprlandFocusGrab.
+                             *
+                             * Tell UtilityModule/shell first.
                              */
+                            root.beginMenuGrace()
+
                             const pos =
                                 root.QsWindow.mapFromItem(
                                     trayItem,
@@ -209,6 +264,7 @@ Item {
 
                             return
                         }
+
 
                         // ─────────────────────
                         // Middle click
@@ -223,14 +279,17 @@ Item {
                             return
                         }
 
+
                         // ─────────────────────
-                        // Menu-only tray items
+                        // Menu-only item
                         // ─────────────────────
 
                         if (
                             trayItem.modelData.onlyMenu
                             && trayItem.modelData.hasMenu
                         ) {
+                            root.beginMenuGrace()
+
                             const pos =
                                 root.QsWindow.mapFromItem(
                                     trayItem,
@@ -247,6 +306,7 @@ Item {
                             return
                         }
 
+
                         // ─────────────────────
                         // Normal left click
                         // ─────────────────────
@@ -254,20 +314,11 @@ Item {
                         trayItem.modelData.activate()
                     }
 
-                    // ─────────────────────────
-                    // Scroll
-                    // ─────────────────────────
 
                     onWheel: wheel => {
                         if (!trayItem.modelData)
                             return
 
-                        /*
-                         * Vertical tray-item scroll.
-                         *
-                         * Some applications ignore this,
-                         * which is perfectly normal.
-                         */
                         trayItem.modelData.scroll(
                             wheel.angleDelta.y,
                             false
@@ -278,9 +329,10 @@ Item {
         }
     }
 
-    // ─────────────────────────────────────────
-    // Whole-module hover detection
-    // ─────────────────────────────────────────
+
+    // ═════════════════════════════════════════
+    // Whole tray hover
+    // ═════════════════════════════════════════
 
     MouseArea {
         id: trayMouse

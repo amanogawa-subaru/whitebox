@@ -20,14 +20,16 @@ PanelWindow {
         right: true
     }
 
-    implicitHeight: 1000
+    implicitHeight:
+        1000
 
     exclusiveZone:
         Appearance.moduleHeight
         + Appearance.screenMargin
         + Appearance.panelBottomMargin
 
-    focusable: true
+    focusable:
+        true
 
     // ═════════════════════════════════════════
     // Shared notification backend
@@ -46,8 +48,7 @@ PanelWindow {
         || workspaceModule.expanded
         || timeModule.expanded
         || musicModule.expanded
-        || notificationModule.expanded
-        || powerModule.expanded
+        || utilityModule.expanded
             ? WlrKeyboardFocus.OnDemand
             : WlrKeyboardFocus.None
 
@@ -60,24 +61,45 @@ PanelWindow {
 
     mask: Region {
         Region {
-            x: leftModules.x
-            y: leftModules.y
-            width: leftModules.width
-            height: leftModules.height
+            x:
+                leftModules.x
+
+            y:
+                leftModules.y
+
+            width:
+                leftModules.width
+
+            height:
+                leftModules.height
         }
 
         Region {
-            x: timeModule.x
-            y: timeModule.y
-            width: timeModule.width
-            height: timeModule.height
+            x:
+                timeModule.x
+
+            y:
+                timeModule.y
+
+            width:
+                timeModule.width
+
+            height:
+                timeModule.height
         }
 
         Region {
-            x: rightModules.x
-            y: rightModules.y
-            width: rightModules.width
-            height: rightModules.height
+            x:
+                rightModules.x
+
+            y:
+                rightModules.y
+
+            width:
+                rightModules.width
+
+            height:
+                rightModules.height
         }
     }
 
@@ -89,8 +111,11 @@ PanelWindow {
         id: leftModules
 
         anchors {
-            left: parent.left
-            top: parent.top
+            left:
+                parent.left
+
+            top:
+                parent.top
 
             leftMargin:
                 Appearance.screenMargin
@@ -110,8 +135,7 @@ PanelWindow {
                     workspaceModule.close()
                     timeModule.close()
                     musicModule.close()
-                    notificationModule.close()
-                    powerModule.close()
+                    utilityModule.close()
                 }
             }
         }
@@ -124,8 +148,7 @@ PanelWindow {
                     searchModule.close()
                     timeModule.close()
                     musicModule.close()
-                    notificationModule.close()
-                    powerModule.close()
+                    utilityModule.close()
                 }
             }
         }
@@ -154,8 +177,7 @@ PanelWindow {
                 searchModule.close()
                 workspaceModule.close()
                 musicModule.close()
-                notificationModule.close()
-                powerModule.close()
+                utilityModule.close()
             }
         }
     }
@@ -192,53 +214,43 @@ PanelWindow {
                     searchModule.close()
                     workspaceModule.close()
                     timeModule.close()
-                    notificationModule.close()
-                    powerModule.close()
+                    utilityModule.close()
                 }
             }
         }
 
-        NotificationModule {
-            id: notificationModule
+        UtilityModule {
+            id: utilityModule
 
             backend:
                 notificationBackend
-
-            onExpandedChanged: {
-                if (expanded) {
-                    searchModule.close()
-                    workspaceModule.close()
-                    timeModule.close()
-                    musicModule.close()
-                    powerModule.close()
-                }
-            }
         }
+    }
 
-        SystrayModule {
-            id: systrayModule
-        }
+    // ═════════════════════════════════════════
+    // Utility expansion coordination
+    //
+    // Kept outside UtilityModule's declaration
+    // for now so we avoid the property-handler
+    // error from the first pass.
+    // ═════════════════════════════════════════
 
-        PowerModule {
-            id: powerModule
+    Connections {
+        target:
+            utilityModule
 
-            onExpandedChanged: {
-                if (expanded) {
-                    searchModule.close()
-                    workspaceModule.close()
-                    timeModule.close()
-                    musicModule.close()
-                    notificationModule.close()
-                }
+        function onExpandedChanged() {
+            if (utilityModule.expanded) {
+                searchModule.close()
+                workspaceModule.close()
+                timeModule.close()
+                musicModule.close()
             }
         }
     }
 
     // ═════════════════════════════════════════
     // Notification popup layer
-    //
-    // This is a separate floating PopupWindow
-    // anchored to NotificationModule.
     // ═════════════════════════════════════════
 
     NotificationPopupLayer {
@@ -246,7 +258,7 @@ PanelWindow {
             notificationBackend
 
         anchorItem:
-            notificationModule
+            utilityModule.notificationAnchor
     }
 
     // ═════════════════════════════════════════
@@ -256,8 +268,11 @@ PanelWindow {
     HyprlandFocusGrab {
         id: searchFocusGrab
 
-        windows: [root]
-        active: searchModule.expanded
+        windows:
+            [root]
+
+        active:
+            searchModule.expanded
 
         onCleared:
             searchModule.close()
@@ -266,8 +281,11 @@ PanelWindow {
     HyprlandFocusGrab {
         id: workspaceFocusGrab
 
-        windows: [root]
-        active: workspaceModule.expanded
+        windows:
+            [root]
+
+        active:
+            workspaceModule.expanded
 
         onCleared:
             workspaceModule.close()
@@ -276,8 +294,11 @@ PanelWindow {
     HyprlandFocusGrab {
         id: timeFocusGrab
 
-        windows: [root]
-        active: timeModule.expanded
+        windows:
+            [root]
+
+        active:
+            timeModule.expanded
 
         onCleared:
             timeModule.close()
@@ -286,31 +307,42 @@ PanelWindow {
     HyprlandFocusGrab {
         id: musicFocusGrab
 
-        windows: [root]
-        active: musicModule.expanded
+        windows:
+            [root]
+
+        active:
+            musicModule.expanded
 
         onCleared:
             musicModule.close()
     }
 
     HyprlandFocusGrab {
-        id: notificationFocusGrab
+        id: utilityFocusGrab
 
-        windows: [root]
-        active: notificationModule.expanded
+        windows:
+            [root]
 
-        onCleared:
-            notificationModule.close()
-    }
+        active:
+            utilityModule.expanded
 
-    HyprlandFocusGrab {
-        id: powerFocusGrab
+        onCleared: {
+            /*
+             * Native systray context menus temporarily steal focus.
+             * SystrayModule raises systrayMenuGrace before display(),
+             * so this clear must not be interpreted as an outside click.
+             */
+            if (utilityModule.systrayMenuGrace) {
+                Qt.callLater(function() {
+                    if (utilityModule.expanded)
+                        utilityModule.forceActiveFocus()
+                })
 
-        windows: [root]
-        active: powerModule.expanded
+                return
+            }
 
-        onCleared:
-            powerModule.close()
+            utilityModule.close()
+        }
     }
 
     // ═════════════════════════════════════════
@@ -323,6 +355,23 @@ PanelWindow {
 
         function toggle(): void {
             searchModule.toggle()
+        }
+    }
+
+    IpcHandler {
+        target:
+            "clipboard"
+
+        function toggle(): void {
+            if (
+                utilityModule.expanded
+                && utilityModule.activeTab
+                    === "clipboard"
+            ) {
+                utilityModule.close()
+            } else {
+                utilityModule.openClipboard()
+            }
         }
     }
 }

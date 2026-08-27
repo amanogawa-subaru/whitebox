@@ -10,6 +10,7 @@
     wget
     curl
     btop
+    wf-recorder
     fastfetch
     pciutils
     cava
@@ -28,6 +29,8 @@
     cliphist
     imagemagick
     swappy
+    ffmpeg-headless # video thumbnails
+    ffmpegthumbnailer # generates thumbnails
         
     # Desktop apps
     nemo-with-extensions
@@ -38,6 +41,7 @@
     lollypop
     anki
     calibre
+    mpv
 
     # Editing
     geany

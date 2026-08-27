@@ -53,7 +53,18 @@ Item {
                     label: "Logout",
                     icon: "󰍃",
                     accent: Colors.mauve,
-                    command: "hyprctl dispatch exit"
+
+                    /*
+                     * Terminate the actual logind
+                     * session rather than merely
+                     * exiting Hyprland. This returns
+                     * the user to a fresh TTY login
+                     * prompt instead of the already
+                     * authenticated parent shell.
+                     */
+                    command:
+                        "loginctl terminate-session "
+                        + "\"$XDG_SESSION_ID\""
                 },
                 {
                     label: "Restart",

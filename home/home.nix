@@ -62,7 +62,7 @@
     "hypr".source = ./dots/hypr;
     "kitty".source = ./dots/kitty;
     "fastfetch".source = ./dots/fastfetch;
-    "quickshell".source = ./dots/quickshell;
+    #"quickshell".source = ./dots/quickshell;
   };			
   
   ## Default apps
@@ -82,7 +82,13 @@
   	  "text/x-lua" = [ "geany.desktop" ];
 	  "text/x-qml" = [ "geany.desktop" ];
       "image/png" = [ "imv.desktop" ];
-		
+      "audio/flac" = [ "org.gnome.Lollypop.desktop"];
+      "audio/mpeg" = [ "org.gnome.Lollypop.desktop"];
+	  "video/mp4" = [ "mpv.desktop" ];
+      "video/x-matroska" = [ "mpv.desktop" ];
+      "video/webm" = [ "mpv.desktop" ];
+      "video/x-msvideo" = [ "mpv.desktop" ];
+      "video/quicktime" = [ "mpv.desktop" ];
 	};
   };
   
