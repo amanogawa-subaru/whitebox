@@ -95,5 +95,20 @@
       };
     };
   };
+  
+  # Clipboard service
+  systemd.user.services.cliphist = {
+    Unit = {
+      Description = "Clipboard history";
+    };
+
+    Service = {
+      ExecStart =
+        "${pkgs.wl-clipboard}/bin/wl-paste --watch ${pkgs.cliphist}/bin/cliphist store";
+
+      Restart = "on-failure";
+      RestartSec = 2;
+    };
+  };
 
 }

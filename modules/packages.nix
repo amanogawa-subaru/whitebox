@@ -20,10 +20,15 @@
     ddcutil # for brightness
     brightnessctl # also for brightness
     playerctl
-    grim # screenshots
     yt-dlp
-    libnotify    
-    
+    libnotify
+    grim
+    slurp
+    wl-clipboard
+    cliphist
+    imagemagick
+    swappy
+        
     # Desktop apps
     nemo-with-extensions
     qbittorrent

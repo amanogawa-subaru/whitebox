@@ -129,59 +129,28 @@ Item {
                     }
                 }
 
-                Column {
+                Text {
                     anchors.centerIn:
                         parent
 
-                    spacing:
-                        5 * Appearance.scale
+                    text:
+                        modelData.icon
 
-                    Text {
-                        anchors.horizontalCenter:
-                            parent.horizontalCenter
+                    font.family:
+                        "Symbols Nerd Font"
 
-                        text:
-                            modelData.icon
+                    font.pixelSize:
+                        Appearance.iconSize + 2
 
-                        font.family:
-                            "Symbols Nerd Font"
+                    color:
+                        actionMouse.containsMouse
+                            ? Colors.base
+                            : modelData.accent
 
-                        font.pixelSize:
-                            Appearance.iconSize + 2
-
-                        color:
-                            actionMouse.containsMouse
-                                ? Colors.base
-                                : modelData.accent
-
-                        Behavior on color {
-                            ColorAnimation {
-                                duration:
-                                    150
-                            }
-                        }
-                    }
-
-                    Text {
-                        anchors.horizontalCenter:
-                            parent.horizontalCenter
-
-                        text:
-                            modelData.label
-
-                        font.pixelSize:
-                            Appearance.textSize - 3
-
-                        color:
-                            actionMouse.containsMouse
-                                ? Colors.base
-                                : modelData.accent
-
-                        Behavior on color {
-                            ColorAnimation {
-                                duration:
-                                    150
-                            }
+                    Behavior on color {
+                        ColorAnimation {
+                            duration:
+                                150
                         }
                     }
                 }
