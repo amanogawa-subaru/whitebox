@@ -65,11 +65,17 @@ Item {
             if (root.hovered && !root.expanded)
                 return Colors.base
 
-            if (root.collapseBase)
-                return root.accentColor
-
+            /*
+             * No-player compact state uses an accent shell,
+             * so the persistent icon must be base-colored.
+             * This must outrank stale collapseBase from the
+             * previous close cycle.
+             */
             if (!root.backend || !root.backend.hasPlayer)
                 return Colors.base
+
+            if (root.collapseBase)
+                return root.accentColor
 
             if (root.expanded)
                 return Colors.base
