@@ -167,8 +167,6 @@ FocusScope {
                         icon
                         + " "
                         + capacity
-                        + "% · "
-                        + status
                 } else {
                     root.hasBattery =
                         false

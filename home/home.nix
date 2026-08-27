@@ -62,7 +62,7 @@
     "hypr".source = ./dots/hypr;
     "kitty".source = ./dots/kitty;
     "fastfetch".source = ./dots/fastfetch;
-    #"quickshell".source = ./dots/quickshell;
+    "quickshell".source = ./dots/quickshell;
   };			
   
   ## Default apps
