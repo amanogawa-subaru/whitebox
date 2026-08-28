@@ -1,6 +1,6 @@
 #  This module is for managing Home Manager 
  
-{ config, pkgs, username, ... }:
+{ pkgs, username, ... }:
 
 {
   home.username = username;

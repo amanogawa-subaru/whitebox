@@ -227,13 +227,7 @@ PanelWindow {
         }
     }
 
-    // ═════════════════════════════════════════
-    // Utility expansion coordination
-    //
-    // Kept outside UtilityModule's declaration
-    // for now so we avoid the property-handler
-    // error from the first pass.
-    // ═════════════════════════════════════════
+    // Coordinate UtilityModule expansion with other modules.
 
     Connections {
         target:

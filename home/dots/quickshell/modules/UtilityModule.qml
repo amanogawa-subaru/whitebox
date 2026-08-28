@@ -253,36 +253,6 @@ FocusScope {
         closeAnimation.restart()
     }
 
-    function closeImmediately() {
-        closeAnimation.stop()
-
-        root.expanded =
-            false
-
-        root.closing =
-            false
-
-        root.shrinking =
-            false
-
-        root.activeTab =
-            ""
-
-        root.hoveredTab =
-            ""
-
-        root.closeBounceScale =
-            1.0
-
-        root.collapseBase =
-            false
-
-        root.closeFillTop =
-            root.headerHeight
-
-        root.suppressHover =
-            true
-    }
 
     function openClipboard() {
         root.openTab(

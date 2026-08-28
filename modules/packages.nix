@@ -14,6 +14,7 @@
     fastfetch
     pciutils
     cava
+    ripgrep
 
     # Utilities
     hyprpaper
@@ -29,7 +30,6 @@
     cliphist
     imagemagick
     swappy
-    ffmpeg-headless # video thumbnails
     ffmpegthumbnailer # generates thumbnails
     bulky # bulk rename
         

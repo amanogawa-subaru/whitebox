@@ -394,6 +394,7 @@ FocusScope {
 
             visible:
                 root.expanded
+                && !root.shrinking
 
             x:
                 root.expandedEdgeThickness
