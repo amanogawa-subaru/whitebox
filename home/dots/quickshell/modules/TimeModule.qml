@@ -333,7 +333,7 @@ FocusScope {
 				text:
 					Qt.formatDateTime(
 						root.currentTime,
-						"MMM d  HH:mm"
+						"ddd MMM d  HH:mm"
 					)
 
 				color: {
