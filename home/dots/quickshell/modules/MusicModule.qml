@@ -34,9 +34,6 @@ FocusScope {
     // Compact sizing
     // ─────────────────────────────────────────
 
-    property real musicMinWidth:
-        220 * Appearance.scale
-
     property real musicMaxWidth:
         500 * Appearance.scale
 
@@ -69,9 +66,9 @@ FocusScope {
             + root.compactSpacing
             + root.compactHorizontalPadding
 
-        return Math.max(
-            root.musicMinWidth,
-            Math.min(wantedWidth, root.musicMaxWidth)
+        return Math.min(
+            wantedWidth,
+            root.musicMaxWidth
         )
     }
 
