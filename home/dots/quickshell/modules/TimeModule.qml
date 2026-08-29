@@ -167,7 +167,11 @@ FocusScope {
         root.expanded
         && !root.shrinking
             ? root.expandedWidth
-            : Appearance.timeWidth
+            : Math.max(
+                Appearance.moduleHeight,
+                clockText.implicitWidth
+                + 24 * Appearance.scale
+            )
 
     height:
         root.expanded
@@ -354,7 +358,7 @@ FocusScope {
 					if (root.expanded)
 						return Colors.base
 
-					return Colors.text
+					return root.accentColor
 				}
 
 				font.pixelSize:
