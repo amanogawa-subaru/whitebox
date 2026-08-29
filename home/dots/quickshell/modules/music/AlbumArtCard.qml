@@ -25,9 +25,6 @@ Rectangle {
 
         fillMode: Image.PreserveAspectCrop
 
-        sourceSize.width: root.width
-        sourceSize.height: root.height
-
         smooth: true
         mipmap: true
         asynchronous: true

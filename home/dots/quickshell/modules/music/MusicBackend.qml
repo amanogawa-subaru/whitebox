@@ -16,29 +16,310 @@ Item {
     // MPRIS player
     // ═════════════════════════════════════════
 
-    property var player:
-        Mpris.players.values.length > 0
-            ? Mpris.players.values[0]
-            : null
+    /*
+     * Selected MPRIS player.
+     *
+     * Do not bind this to Mpris.players.values[0]: that is only
+     * collection order and causes the first-opened app to win forever.
+     *
+     * Instead, every MPRIS player below is watched independently.
+     * The most recent player to enter Playing state becomes active.
+     */
+    property var player: null
 
     property bool hasPlayer:
         root.player !== null
 
+    /*
+     * Display metadata is intentionally cached instead of being bound
+     * directly to the selected player's live metadata.
+     *
+     * Firefox/YouTube can change MPRIS metadata for hover/autoplay
+     * previews while playback is paused. Those changes should not
+     * rewrite the compact music module.
+     */
+    property string cachedTitle: ""
+    property string cachedArtist: ""
+    property string cachedMediaUrl: ""
+    property url cachedTrackArtUrl: ""
+
     property string title:
-        root.player && root.player.trackTitle
-            ? root.player.trackTitle
-            : ""
+        root.cachedTitle
 
     property string artist:
-        root.player && root.player.trackArtist
-            ? root.player.trackArtist
-            : ""
+        root.cachedArtist
 
     property bool playing:
         root.player
             ? root.player.playbackState
                 === MprisPlaybackState.Playing
             : false
+
+    function playerMediaUrl(player) {
+        if (
+            !player
+            || !player.metadata
+        ) {
+            return ""
+        }
+
+        const value =
+            player.metadata["xesam:url"]
+
+        return value
+            ? value.toString()
+            : ""
+    }
+
+    function isFirefoxYouTube(player) {
+        if (!player)
+            return false
+
+        const dbusName =
+            player.dbusName
+                ? player.dbusName.toLowerCase()
+                : ""
+
+        const isFirefoxFamily =
+            dbusName.includes("firefox")
+            || dbusName.includes("librewolf")
+
+        if (!isFirefoxFamily)
+            return false
+
+        const url =
+            root.playerMediaUrl(
+                player
+            )
+
+        return (
+            url.includes("youtube.com/")
+            || url.includes("youtu.be/")
+        )
+    }
+
+    function hasUsableTrackMetadata(player) {
+        if (!player)
+            return false
+
+        /*
+         * Firefox/LibreWolf YouTube hover previews can enter Playing
+         * and publish a preview title/artist/artwork while omitting a
+         * real track length.
+         *
+         * Quickshell exposes this directly as lengthSupported/length,
+         * which is more reliable than reading raw metadata keys.
+         */
+        if (
+            !root.isFirefoxYouTube(
+                player
+            )
+        ) {
+            return true
+        }
+
+        return (
+            player.lengthSupported
+            && player.length > 0
+        )
+    }
+
+    function snapshotMetadata(player) {
+        if (!player)
+            return
+
+        root.cachedTitle =
+            player.trackTitle
+                ? player.trackTitle
+                : ""
+
+        root.cachedArtist =
+            player.trackArtist
+                ? player.trackArtist
+                : ""
+
+        root.cachedMediaUrl =
+            root.playerMediaUrl(
+                player
+            )
+
+        root.cachedTrackArtUrl =
+            player.trackArtUrl
+                ? player.trackArtUrl
+                : ""
+    }
+
+    function selectPlayer(player) {
+        if (
+            !player
+            || !root.hasUsableTrackMetadata(
+                player
+            )
+        ) {
+            return false
+        }
+
+        const changed =
+            root.player !== player
+
+        root.player =
+            player
+
+        /*
+         * A player is selected only because it became active, was
+         * discovered as the best fallback, or replaced a vanished
+         * player. Take one clean metadata snapshot at that point.
+         */
+        root.snapshotMetadata(
+            player
+        )
+
+        if (changed) {
+            root.cachedTrackLength =
+                0
+
+            root.durationQueryPending =
+                false
+
+            root.ytDurationQueryPending =
+                false
+
+            root.ytDurationVideoId =
+                ""
+
+            root.scrubbing =
+                false
+
+            root.queryDuration()
+        }
+
+        return true
+    }
+
+    function selectBestFallback() {
+        const players =
+            Mpris.players.values
+
+        if (players.length <= 0) {
+            root.player =
+                null
+
+            root.cachedTitle =
+                ""
+
+            root.cachedArtist =
+                ""
+
+            root.cachedMediaUrl =
+                ""
+
+            root.cachedTrackArtUrl =
+                ""
+
+            return
+        }
+
+        /*
+         * Prefer anything that is currently playing.
+         */
+        for (
+            let i = 0;
+            i < players.length;
+            ++i
+        ) {
+            if (
+                players[i].playbackState
+                === MprisPlaybackState.Playing
+                && root.selectPlayer(
+                    players[i]
+                )
+            ) {
+                return
+            }
+        }
+
+        /*
+         * If nothing is playing, keep the existing paused/stopped
+         * player when it still exists. This preserves the last real
+         * track instead of jumping around between idle players.
+         */
+        if (
+            root.player
+            && players.indexOf(root.player) >= 0
+        ) {
+            return
+        }
+
+        /*
+         * Last fallback: expose one valid MPRIS player so the module
+         * never becomes unusable merely because the priority heuristic
+         * has no winner.
+         */
+        for (
+            let i = 0;
+            i < players.length;
+            ++i
+        ) {
+            if (
+                root.selectPlayer(
+                    players[i]
+                )
+            ) {
+                return
+            }
+        }
+    }
+
+    function handlePlaybackStateChanged(player) {
+        if (!player)
+            return
+
+        if (
+            player.playbackState
+            === MprisPlaybackState.Playing
+        ) {
+            /*
+             * Most recent real Playing transition wins.
+             * Firefox/YouTube previews are rejected by
+             * hasUsableTrackMetadata().
+             */
+            root.selectPlayer(
+                player
+            )
+            return
+        }
+
+        if (root.player !== player)
+            return
+
+        /*
+         * The active player paused/stopped. If another source is still
+         * playing, immediately hand control to it. Otherwise retain the
+         * paused player's cached metadata.
+         */
+        const players =
+            Mpris.players.values
+
+        for (
+            let i = 0;
+            i < players.length;
+            ++i
+        ) {
+            const candidate =
+                players[i]
+
+            if (
+                candidate !== player
+                && candidate.playbackState
+                    === MprisPlaybackState.Playing
+            ) {
+                root.selectPlayer(
+                    candidate
+                )
+                return
+            }
+        }
+    }
 
     property string compactText: {
         if (
@@ -81,21 +362,8 @@ Item {
     // Media URL / YouTube helpers
     // ═════════════════════════════════════════
 
-    property string mediaUrl: {
-        if (
-            !root.player
-            || !root.player.metadata
-        ) {
-            return ""
-        }
-
-        const value =
-            root.player.metadata["xesam:url"]
-
-        return value
-            ? value.toString()
-            : ""
-    }
+    property string mediaUrl:
+        root.cachedMediaUrl
 
     property string youtubeId: {
         const url =
@@ -501,35 +769,93 @@ Item {
     // Player / track changes
     // ═════════════════════════════════════════
 
-    onPlayerChanged: {
-        root.cachedTrackLength =
-            0
+    /*
+     * Firefox/LibreWolf often emits trackChanged before YouTube has
+     * finished publishing the new title/artist/length. Refreshing
+     * immediately can therefore read the previous video's metadata.
+     *
+     * Debounce the refresh very briefly and read MPRIS again after
+     * YouTube's SPA navigation has settled.
+     */
+    property var pendingMetadataPlayer: null
 
-        root.durationQueryPending =
-            false
+    /*
+     * Last valid track signature seen for every MPRIS player.
+     *
+     * This lets an already-Playing background source become active
+     * when it starts a genuinely different track. Firefox/LibreWolf
+     * hover previews never enter this map because they fail
+     * hasUsableTrackMetadata().
+     */
+    property var validTrackSignatures:
+        ({})
 
-        root.ytDurationQueryPending =
-            false
-
-        root.ytDurationVideoId =
-            ""
-
-        if (root.player) {
-            root.queryDuration()
+    function trackSignature(player) {
+        if (
+            !player
+            || !root.hasUsableTrackMetadata(
+                player
+            )
+        ) {
+            return ""
         }
+
+        const title =
+            player.trackTitle
+                ? player.trackTitle
+                : ""
+
+        const artist =
+            player.trackArtist
+                ? player.trackArtist
+                : ""
+
+        const length =
+            player.lengthSupported
+                ? player.length
+                : 0
+
+        return (
+            title
+            + "\u001f"
+            + artist
+            + "\u001f"
+            + length.toString()
+        )
     }
 
-    Connections {
-        target:
-            root.player
+    Timer {
+        id: metadataRefreshDelay
 
-        function onTrackChanged() {
-            /*
-             * New song:
-             *
-             * invalidate the previous duration
-             * and allow a fresh yt-dlp lookup.
-             */
+        interval:
+            300
+
+        repeat:
+            false
+
+        onTriggered: {
+            const candidate =
+                root.pendingMetadataPlayer
+
+            root.pendingMetadataPlayer =
+                null
+
+            if (
+                !candidate
+                || root.player !== candidate
+                || candidate.playbackState
+                    !== MprisPlaybackState.Playing
+                || !root.hasUsableTrackMetadata(
+                    candidate
+                )
+            ) {
+                return
+            }
+
+            root.snapshotMetadata(
+                candidate
+            )
+
             root.cachedTrackLength =
                 0
 
@@ -544,20 +870,376 @@ Item {
 
             root.queryDuration()
         }
+    }
 
-        function onPostTrackChanged() {
-            if (
-                root.cachedTrackLength <= 0
+    function scheduleMetadataRefresh(player) {
+        if (!player)
+            return
+
+        root.pendingMetadataPlayer =
+            player
+
+        metadataRefreshDelay.restart()
+    }
+
+    /*
+     * Firefox/LibreWolf do not reliably emit a useful trackChanged
+     * signal for every YouTube SPA navigation. Keep the event-driven
+     * path above, but also synchronize the selected player's already-
+     * local MPRIS metadata while it is actually playing.
+     *
+     * This does not make network requests. It only rereads the MPRIS
+     * properties Quickshell already has.
+     */
+    function syncDisplayedMetadata() {
+        const candidate =
+            root.player
+
+        if (
+            !candidate
+            || candidate.playbackState
+                !== MprisPlaybackState.Playing
+            || !root.hasUsableTrackMetadata(
+                candidate
+            )
+        ) {
+            return
+        }
+
+        const liveTitle =
+            candidate.trackTitle
+                ? candidate.trackTitle
+                : ""
+
+        const liveArtist =
+            candidate.trackArtist
+                ? candidate.trackArtist
+                : ""
+
+        const liveUrl =
+            root.playerMediaUrl(
+                candidate
+            )
+
+        const liveArtUrl =
+            candidate.trackArtUrl
+                ? candidate.trackArtUrl
+                : ""
+
+        if (
+            liveTitle === root.cachedTitle
+            && liveArtist === root.cachedArtist
+            && liveUrl === root.cachedMediaUrl
+            && liveArtUrl === root.cachedTrackArtUrl
+        ) {
+            return
+        }
+
+        root.snapshotMetadata(
+            candidate
+        )
+
+        root.cachedTrackLength =
+            0
+
+        root.ytDurationVideoId =
+            ""
+
+        root.durationQueryPending =
+            false
+
+        root.ytDurationQueryPending =
+            false
+
+        root.queryDuration()
+    }
+
+    Timer {
+        id: metadataSyncPoll
+
+        interval:
+            300
+
+        running:
+            root.player
+            && root.playing
+
+        repeat:
+            true
+
+        triggeredOnStart:
+            true
+
+        onTriggered: {
+            const players =
+                Mpris.players.values
+
+            const nextSignatures =
+                ({})
+
+            let newestTrackPlayer =
+                null
+
+            for (
+                let i = 0;
+                i < players.length;
+                ++i
             ) {
-                root.queryDuration()
+                const candidate =
+                    players[i]
+
+                if (
+                    candidate.playbackState
+                    !== MprisPlaybackState.Playing
+                    || !root.hasUsableTrackMetadata(
+                        candidate
+                    )
+                ) {
+                    continue
+                }
+
+                const key =
+                    candidate.dbusName
+                        ? candidate.dbusName.toString()
+                        : (
+                            candidate.identity
+                                ? candidate.identity.toString()
+                                : candidate.toString()
+                        )
+
+                const signature =
+                    root.trackSignature(
+                        candidate
+                    )
+
+                nextSignatures[key] =
+                    signature
+
+                const previous =
+                    root.validTrackSignatures[key]
+
+                /*
+                 * Only an already-known player changing from one
+                 * valid real track to another counts as new activity.
+                 * The first observation merely establishes baseline
+                 * state and cannot steal focus.
+                 */
+                if (
+                    previous
+                    && signature
+                    && previous !== signature
+                ) {
+                    newestTrackPlayer =
+                        candidate
+                }
             }
+
+            /*
+             * Preserve signatures for players that are temporarily
+             * paused so resume itself remains governed by the existing
+             * playback-state selection logic.
+             */
+            const oldKeys =
+                Object.keys(
+                    root.validTrackSignatures
+                )
+
+            for (
+                let i = 0;
+                i < oldKeys.length;
+                ++i
+            ) {
+                const key =
+                    oldKeys[i]
+
+                if (!nextSignatures[key]) {
+                    nextSignatures[key] =
+                        root.validTrackSignatures[key]
+                }
+            }
+
+            root.validTrackSignatures =
+                nextSignatures
+
+            if (
+                newestTrackPlayer
+                && newestTrackPlayer
+                    !== root.player
+            ) {
+                root.selectPlayer(
+                    newestTrackPlayer
+                )
+            }
+
+            root.syncDisplayedMetadata()
         }
     }
 
     /*
-     * The YouTube ID is the cleanest indicator
-     * that the browser has moved to another
-     * YouTube / YouTube Music video.
+     * Repeater is used only as a convenient way to instantiate one
+     * hidden watcher Item per MPRIS player. The delegates have no size
+     * and never render anything.
+     */
+    Repeater {
+        id: playerWatchers
+
+        model:
+            Mpris.players
+
+        onCountChanged:
+            Qt.callLater(
+                root.selectBestFallback
+            )
+
+        delegate:
+            Item {
+                required property var modelData
+
+                visible:
+                    false
+
+                width:
+                    0
+
+                height:
+                    0
+
+                Component.onCompleted: {
+                    /*
+                     * A newly-created player may already be Playing
+                     * before its watcher exists.
+                     */
+                    if (
+                        modelData.playbackState
+                        === MprisPlaybackState.Playing
+                    ) {
+                        root.selectPlayer(
+                            modelData
+                        )
+                    } else if (!root.player) {
+                        root.selectBestFallback()
+                    }
+                }
+
+                Connections {
+                    target:
+                        modelData
+
+                    function onPlaybackStateChanged() {
+                        root.handlePlaybackStateChanged(
+                            modelData
+                        )
+                    }
+
+                    function onTrackChanged() {
+                        /*
+                         * Firefox can enter Playing before all of its
+                         * MPRIS metadata is ready. If there is no
+                         * selected player yet, reconsider it when its
+                         * track metadata arrives.
+                         */
+                        if (
+                            !root.player
+                            && modelData.playbackState
+                                === MprisPlaybackState.Playing
+                            && root.hasUsableTrackMetadata(
+                                modelData
+                            )
+                        ) {
+                            root.selectPlayer(
+                                modelData
+                            )
+                            return
+                        }
+
+                        /*
+                         * Only accept live metadata changes from the
+                         * selected player while it is actually Playing.
+                         *
+                         * Paused Firefox/YouTube hover previews can
+                         * emit track changes; those are intentionally
+                         * ignored.
+                         */
+                        if (
+                            root.player
+                            !== modelData
+                            || modelData.playbackState
+                                !== MprisPlaybackState.Playing
+                            || !root.hasUsableTrackMetadata(
+                                modelData
+                            )
+                        ) {
+                            return
+                        }
+
+                        root.scheduleMetadataRefresh(
+                            modelData
+                        )
+                    }
+
+                    function onPostTrackChanged() {
+                        /*
+                         * Some players finalize metadata in the
+                         * post-track signal. This is also another
+                         * chance to bootstrap Firefox after its
+                         * metadata becomes usable.
+                         */
+                        if (
+                            !root.player
+                            && modelData.playbackState
+                                === MprisPlaybackState.Playing
+                            && root.hasUsableTrackMetadata(
+                                modelData
+                            )
+                        ) {
+                            root.selectPlayer(
+                                modelData
+                            )
+                            return
+                        }
+
+                        if (
+                            root.player
+                            === modelData
+                            && modelData.playbackState
+                                === MprisPlaybackState.Playing
+                        ) {
+                            root.scheduleMetadataRefresh(
+                                modelData
+                            )
+                        }
+                    }
+                }
+            }
+    }
+
+    /*
+     * Firefox can expose its MPRIS player before track length and
+     * metadata are fully populated. Retry briefly while no player has
+     * been selected instead of requiring another app to wake us up.
+     */
+    Timer {
+        id: initialPlayerRetry
+
+        interval:
+            500
+
+        running:
+            !root.player
+
+        repeat:
+            true
+
+        triggeredOnStart:
+            true
+
+        onTriggered:
+            root.selectBestFallback()
+    }
+
+    /*
+     * The cached URL is the clean track identity used by our YouTube
+     * artwork/duration helpers.
      */
     onYoutubeIdChanged: {
         root.cachedTrackLength =
@@ -569,14 +1251,14 @@ Item {
         root.ytDurationQueryPending =
             false
 
-        /*
-         * Artwork also resets on track change.
-         */
         root.youtubeArtworkStage =
             0
 
         if (
             root.youtubeId.length > 0
+            && root.player
+            && root.player.playbackState
+                === MprisPlaybackState.Playing
         ) {
             root.queryDuration()
         }
@@ -607,12 +1289,8 @@ Item {
         0
 
     property url artworkSource: {
-        if (!root.isYouTube) {
-            return root.player
-                && root.player.trackArtUrl
-                    ? root.player.trackArtUrl
-                    : ""
-        }
+        if (!root.isYouTube)
+            return root.cachedTrackArtUrl
 
         const base =
             "https://i.ytimg.com/vi/"
@@ -640,10 +1318,7 @@ Item {
                 + "hqdefault.jpg"
         }
 
-        return root.player
-            && root.player.trackArtUrl
-                ? root.player.trackArtUrl
-                : ""
+        return root.cachedTrackArtUrl
     }
 
     function advanceArtworkStage() {
