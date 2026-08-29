@@ -1,16 +1,13 @@
 # This module is intended for system settings
 { pkgs, username, ... }:
 
-let
-  home-manager = builtins.fetchTarball
-    "https://github.com/nix-community/home-manager/archive/release-26.05.tar.gz";  
-in
-
 {
-  imports = [
-    (import "${home-manager}/nixos")
-  ];
-  
+  # Enable flakes
+  nix.settings.experimental-features = [
+    "nix-command"
+    "flakes"
+  ]; 
+ 
   # Enable trash
   services.gvfs.enable = true;
   
@@ -67,6 +64,6 @@ in
     fcitx5.addons = with pkgs; [
       fcitx5-mozc
       fcitx5-gtk
-  ];
-};
+    ];
+  };
 }
