@@ -98,7 +98,7 @@ FocusScope {
         Colors.red
 
     property color neutralIconColor:
-        Colors.subtext0
+        Colors.text
 
     property real closeBounceScale:
         1.0
