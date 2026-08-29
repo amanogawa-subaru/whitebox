@@ -362,6 +362,9 @@ Scope {
                     width:
                         root.popupWidth
 
+                    backend:
+                        root.backend
+
                     notification:
                         modelData.notification
 

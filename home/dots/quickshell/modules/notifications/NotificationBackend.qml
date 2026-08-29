@@ -19,6 +19,7 @@ Item {
      * exact same signal for popup toasts.
      */
     signal notificationReceived(var notification)
+    signal notificationActivated()
 
     property alias server:
         notificationServer
@@ -62,6 +63,62 @@ Item {
                 )
             }
         }
+    }
+
+
+    function activate(notification) {
+        if (!notification)
+            return
+
+        /*
+         * Capture identifying metadata BEFORE invoking the
+         * notification action. Some applications dismiss or
+         * invalidate their notification immediately when the
+         * default action is invoked.
+         */
+        const windowClass =
+            notification.desktopEntry
+
+        /*
+         * Let the application handle its own
+         * notification-specific action first.
+         */
+        const actions =
+            notification.actions
+
+        for (
+            let i = 0;
+            i < actions.length;
+            ++i
+        ) {
+            const action =
+                actions[i]
+
+            if (
+                action.identifier
+                === "default"
+            ) {
+                action.invoke()
+                break
+            }
+        }
+
+        /*
+         * Then focus the originating Hyprland window.
+         * The tested desktop-entry IDs match the actual
+         * Hyprland classes for Firefox and qBittorrent.
+         */
+        if (windowClass) {
+            Quickshell.execDetached([
+                "hyprctl",
+                "dispatch",
+                "hl.dsp.focus({ window = \"class:^"
+                    + windowClass
+                    + "$\" })"
+            ])
+        }
+
+        root.notificationActivated()
     }
 
     function dismiss(notification) {

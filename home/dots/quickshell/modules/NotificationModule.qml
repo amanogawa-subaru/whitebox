@@ -14,6 +14,15 @@ FocusScope {
 
     signal closeRequested()
 
+    Connections {
+        target:
+            root.backend
+
+        function onNotificationActivated() {
+            root.closeRequested()
+        }
+    }
+
     readonly property int notificationCount:
         root.backend
             ? root.backend.count
@@ -311,27 +320,14 @@ FocusScope {
                         accentColor:
                             root.accentColor
 
+                        property var activationBackend:
+                            root.backend
+
                         onActivated: {
-                            const actions =
-                                modelData.actions
-
-                            for (
-                                let i = 0;
-                                i < actions.length;
-                                ++i
-                            ) {
-                                const action =
-                                    actions[i]
-
-                                if (
-                                    action.identifier
-                                    === "default"
-                                ) {
-                                    action.invoke()
-                                    root.closeRequested()
-                                    return
-                                }
-                            }
+                            if (activationBackend)
+                                activationBackend.activate(
+                                    modelData
+                                )
                         }
 
                         onDismissRequested:

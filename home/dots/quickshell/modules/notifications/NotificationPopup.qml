@@ -8,6 +8,7 @@ import "../../Config"
 Item {
     id: root
 
+    required property var backend
     required property var notification
     required property int notificationId
 
@@ -72,36 +73,24 @@ Item {
 
     function invokeDefaultAction() {
         if (
-            !root.notification
+            !root.backend
+            || !root.notification
             || root.closing
         ) {
             return false
         }
 
-        const actions =
-            root.notification.actions
+        /*
+         * NotificationBackend owns all activation logic:
+         * default action + Hyprland app focusing.
+         */
+        root.backend.activate(
+            root.notification
+        )
 
-        for (
-            let i = 0;
-            i < actions.length;
-            ++i
-        ) {
-            const action =
-                actions[i]
+        root.beginClose()
 
-            if (
-                action.identifier
-                === "default"
-            ) {
-                root.beginClose()
-
-                action.invoke()
-
-                return true
-            }
-        }
-
-        return false
+        return true
     }
 
     // ═════════════════════════════════════════
