@@ -7,7 +7,6 @@
     # Desktop UI/UX
     quickshell
     hyprpaper
-    kitty
     
     # Utilities
     ddcutil

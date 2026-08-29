@@ -1,12 +1,23 @@
 #  This module is for managing Home Manager 
  
-{ pkgs, username, ... }:
+{ pkgs, username, firefox-addons, ... }:
 
 {
   home.username = username;
   home.homeDirectory = "/home/${username}";
 
   home.stateVersion = "26.05";
+  
+  # Catppuccin theme
+  catppuccin = {
+    enable = true;
+    flavor = "frappe";
+    accent = "pink";
+    
+    kitty.enable = true;
+    firefox.enable = true;
+    librewolf.enable = true;
+  }; 
 
 
   # Create user directories
@@ -37,12 +48,7 @@
 
     iconTheme = {
       name = "Papirus-Dark";
-      
-      package = pkgs.catppuccin-papirus-folders.override {
-        flavor = "frappe";
-        accent = "pink";
-      };    
-    };
+    };    
   };
   
   
@@ -59,19 +65,66 @@
   
   # Dotfiles
   xdg.configFile = {
-    "kitty".source = ./dots/kitty;
+    #"kitty".source = ./dots/kitty;
     "fastfetch".source = ./dots/fastfetch;
     "quickshell".source = ./dots/quickshell;
   };			
   
-  ## Default apps
+  ## Default home apps
   
   # Set nemo as default file browser
   xdg.desktopEntries.nemo = {
     name = "Nemo";
 	  exec = "${pkgs.nemo-with-extensions}/bin/nemo";
-
   };
+  
+  programs.kitty = {
+    enable = true;
+    extraConfig = builtins.readFile ./dots/kitty/kitty.conf;
+  };
+  
+  programs.firefox = {
+    enable = true;
+
+    
+
+    profiles.default = {
+      id = 0;
+      isDefault = true;
+      
+      settings = {
+        "extensions.autoDisableScopes" = 0;
+      };
+           
+      extensions = {
+	    force = true;
+	    packages = with firefox-addons.packages.${pkgs.system}; [
+	      firefox-color
+	    ];
+      };
+    };
+  };
+
+  programs.librewolf = {
+    enable = true;
+
+    profiles.default = {
+      id = 0;
+      isDefault = true;
+      
+      settings = {
+        "extensions.autoDisableScopes" = 0;
+      };
+	  
+	  extensions = {
+	    force = true;
+	    packages = with firefox-addons.packages.${pkgs.system}; [
+	      firefox-color
+	    ];
+      };
+    };
+  };  
+  
   xdg.mimeApps = {
     enable = true;
 	defaultApplications = {

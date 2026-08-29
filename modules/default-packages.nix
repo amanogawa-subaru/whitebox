@@ -9,7 +9,7 @@
     bulky
     
     # Browser
-    librewolf
+    #librewolf
     
     # Media
     imv
@@ -24,5 +24,5 @@
   ];
   
   # Fallback browser
-  programs.firefox.enable = true;
+  #programs.firefox.enable = true;
 }
