@@ -56,3 +56,14 @@ hl.window_rule({
     float = true,
     center = true,
 })
+
+-- Bulky opens floating
+hl.window_rule({
+    name = "float-bulky",
+    match = {
+        class = "^\\.bulky-wrapped$",
+    },
+
+    float = true,
+    center = true,
+})

@@ -2,29 +2,28 @@
 
 -- Sets "Windows" key as main modifier
 local mainMod = "SUPER" 
-hl.bind(mainMod .. " + SHIFT + Q", hl.dsp.exec_cmd("command -v hyprshutdown >/dev/null 2>&1 && hyprshutdown || hyprctl dispatch 'hl.dsp.exit()'")) -- Quit hyprland
-
+-- Quit hyprland
+hl.bind(mainMod .. " + SHIFT + Q", hl.dsp.exec_cmd("command -v hyprshutdown >/dev/null 2>&1 && hyprshutdown || hyprctl dispatch 'hl.dsp.exit()'")) 
 -- Reset hyprland and quickshell
-hl.bind(mainMod .. " + SHIFT + R", hl.dsp.exec_cmd("hyprctl reload; qs kill; sleep 0.2; qs")
-)
+hl.bind(mainMod .. " + SHIFT + R", hl.dsp.exec_cmd("hyprctl reload; qs kill; sleep 0.2; qs"))
+
 
 hl.bind(mainMod .. " + Return", hl.dsp.exec_cmd("kitty"))
 hl.bind(mainMod .. " + B", hl.dsp.exec_cmd("firefox"))
 hl.bind(mainMod .. " + E", hl.dsp.exec_cmd("nemo"))
-
+-- Search
+hl.bind(mainMod .. " + R", hl.dsp.exec_cmd("qs ipc call search toggle"))
 -- Screenshot
 hl.bind(mainMod .. " + SHIFT + S", hl.dsp.exec_cmd([[grim -g "$(slurp)" - | convert - -shave 1x1 PNG:- | swappy -f -]]))
 
--- Quickshell
-
-hl.bind(mainMod .. " + R", hl.dsp.exec_cmd("qs ipc call search toggle"))
 
 -- WINDOWS --
 
 local closeWindowBind = hl.bind(mainMod .. " + Q", hl.dsp.window.close())
 hl.bind(mainMod .. " + J", hl.dsp.layout("togglesplit"))    -- dwindle only
 hl.bind(mainMod .. " + P", hl.dsp.window.pseudo())
-
+-- Toggle fullscreen
+hl.bind(mainMod .. " + SHIFT + F", hl.dsp.window.fullscreen())
 
 -- Toggle floating, resize, and center with one keybind
 hl.bind(mainMod .. " + F", hl.dsp.window.float({ action = "toggle" }))
