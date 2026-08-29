@@ -11,6 +11,8 @@
   # Catppuccin theme
   catppuccin = {
     enable = true;
+    autoEnable = true;
+    
     flavor = "frappe";
     accent = "pink";
     
@@ -18,17 +20,6 @@
     firefox.enable = true;
     librewolf.enable = true;
   }; 
-
-
-  # Create user directories
-  xdg = {
-    enable = true;
-    	
-    userDirs = {
-      enable = true;
-      createDirectories = true;
-    };
-  };
 
 
   # GTK theme
@@ -50,7 +41,18 @@
       name = "Papirus-Dark";
     };    
   };
-  
+
+
+  # Create user directories
+  xdg = {
+    enable = true;
+    	
+    userDirs = {
+      enable = true;
+      createDirectories = true;
+    };
+  };  
+
   
   # Cursor
   home.pointerCursor = {
