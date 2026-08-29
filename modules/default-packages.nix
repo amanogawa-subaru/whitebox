@@ -1,4 +1,4 @@
-# This module is intended for packages whitebox uses as defaults
+# This module is intended for packages and programs whitebox uses as defaults
 
 { pkgs, ... }:
 
@@ -22,4 +22,7 @@
     # CLI
     fastfetch
   ];
+  
+  # Fallback browser
+  programs.firefox.enable = true;
 }

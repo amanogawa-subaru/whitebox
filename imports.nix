@@ -13,10 +13,11 @@ in
   imports = [
     ./modules/system.nix
     ./modules/desktop.nix
-    ./modules/programs.nix
+    
     ./modules/core-packages.nix
     ./modules/default-packages.nix
     ./modules/user-packages.nix
+    
     ./modules/fonts.nix
   ]
   ++ lib.optional

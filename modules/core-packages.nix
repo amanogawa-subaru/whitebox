@@ -1,4 +1,4 @@
-# This module is intended for packages whitebox requires to function
+# This module is intended for packages and programs whitebox requires to function
 
 { pkgs, ... }:
 
@@ -24,4 +24,7 @@
     yt-dlp
     playerctl
   ];
+  
+  # Lock screen
+  programs.hyprlock.enable = true;
 }
