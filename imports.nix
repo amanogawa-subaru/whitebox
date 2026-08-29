@@ -14,6 +14,7 @@ in
     ./modules/system.nix
     ./modules/desktop.nix
     ./modules/programs.nix
+    ./modules/user-packages.nix
     ./modules/packages.nix
     ./modules/fonts.nix
   ]
