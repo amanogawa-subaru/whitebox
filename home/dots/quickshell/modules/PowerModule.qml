@@ -37,9 +37,9 @@ FocusScope {
      */
     readonly property bool deviceSelectorAnimating:
         outputSelector.expanded
-        || outputSelector.animating
+        || outputSelector.animatedHeight > 0
         || inputSelector.expanded
-        || inputSelector.animating
+        || inputSelector.animatedHeight > 0
 
     function collapseDeviceSelectors() {
         outputSelector.expanded =
@@ -447,10 +447,9 @@ FocusScope {
             height:
                 root.controlCardPadding * 2
                 + root.controlRowHeight
-                + (
-                    outputSelector.animatedHeight > 0
-                        ? 8 * Appearance.scale
-                        : 0
+                + Math.min(
+                    8 * Appearance.scale,
+                    outputSelector.animatedHeight
                 )
                 + outputSelector.animatedHeight
 
@@ -583,10 +582,9 @@ FocusScope {
             height:
                 root.controlCardPadding * 2
                 + root.controlRowHeight
-                + (
-                    inputSelector.animatedHeight > 0
-                        ? 8 * Appearance.scale
-                        : 0
+                + Math.min(
+                    8 * Appearance.scale,
+                    inputSelector.animatedHeight
                 )
                 + inputSelector.animatedHeight
 
