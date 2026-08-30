@@ -16,8 +16,6 @@
     grim
     slurp
     swappy
-    libnotify
-    ffmpegthumbnailer
     cava
     imagemagick
     yt-dlp

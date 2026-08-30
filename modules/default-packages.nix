@@ -6,10 +6,8 @@
   environment.systemPackages = with pkgs; [
     # File management
     nemo-with-extensions
+    ffmpegthumbnailer
     bulky
-    
-    # Browser
-    #librewolf
     
     # Media
     imv
@@ -20,9 +18,10 @@
     geany
     
     # CLI
+    vim
+    neovim
     fastfetch
+    btop
   ];
   
-  # Fallback browser
-  #programs.firefox.enable = true;
 }
