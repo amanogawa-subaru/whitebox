@@ -274,6 +274,40 @@ fi
 
 
 # ─────────────────────────────────────────────
+# Back up conflicting browser profile indexes
+# ─────────────────────────────────────────────
+
+backup_browser_profile() {
+    local file="$1"
+
+    if [ -f "$file" ] && [ ! -L "$file" ]; then
+        local backup="${file}.pre-whitebox"
+
+        if [ -e "$backup" ]; then
+            echo
+            echo "ERROR: $file conflicts with Home Manager,"
+            echo "but $backup already exists."
+            echo "Refusing to overwrite either file."
+            exit 1
+        fi
+
+        mv "$file" "$backup"
+
+        echo
+        echo "Backed up existing browser profile:"
+        echo "  $file"
+        echo "  -> $backup"
+    fi
+}
+
+backup_browser_profile \
+    "$HOME/.config/mozilla/firefox/profiles.ini"
+
+backup_browser_profile \
+    "$HOME/.librewolf/profiles.ini"
+
+
+# ─────────────────────────────────────────────
 # Set up profile composition portal
 # ─────────────────────────────────────────────
 
