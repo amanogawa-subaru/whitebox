@@ -18,6 +18,8 @@ in
     ./modules/default-packages.nix
     ./modules/user-packages.nix
     
+    ./modules/mount.nix
+    
     ./modules/fonts.nix
   ]
   ++ lib.optional

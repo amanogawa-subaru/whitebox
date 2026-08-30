@@ -250,6 +250,30 @@ fi
 
 
 # ─────────────────────────────────────────────
+# Generate local mounts
+# ─────────────────────────────────────────────
+
+MOUNT_CONFIG="$REPO_DIR/modules/mount.nix"
+MOUNT_EXAMPLE="$REPO_DIR/modules/mount.example.nix"
+
+if [ ! -f "$MOUNT_CONFIG" ]; then
+    if [ ! -f "$MOUNT_EXAMPLE" ]; then
+        echo
+        echo "ERROR: $MOUNT_EXAMPLE does not exist."
+        exit 1
+    fi
+
+    cp "$MOUNT_EXAMPLE" "$MOUNT_CONFIG"
+
+    echo
+    echo "Generated mount.nix"
+else
+    echo
+    echo "Existing mount.nix preserved."
+fi
+
+
+# ─────────────────────────────────────────────
 # Set up profile composition portal
 # ─────────────────────────────────────────────
 

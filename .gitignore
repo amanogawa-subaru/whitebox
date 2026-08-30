@@ -1,3 +1,4 @@
 settings.nix
 *.bak
 modules/user-packages.nix
+modules/mount.nix
