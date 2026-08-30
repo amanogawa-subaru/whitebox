@@ -81,6 +81,7 @@
     extraConfig = builtins.readFile ./dots/kitty/kitty.conf;
   };
   
+  # Firefox is enabled as a fallback browser
   programs.firefox = {
     enable = true;
 
