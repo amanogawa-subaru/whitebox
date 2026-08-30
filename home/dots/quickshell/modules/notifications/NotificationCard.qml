@@ -5,8 +5,24 @@ import Quickshell.Services.Notifications
 
 import "../../Config"
 
+
 Rectangle {
     id: root
+    
+    function resolveAppIcon(icon) {
+        if (!icon || icon.length === 0)
+            return ""
+
+        if (
+            icon.startsWith("file://")
+            || icon.startsWith("/")
+        ) {
+            return icon
+        }
+
+        return Quickshell.iconPath(icon)
+    }
+    
 
     required property var notification
 
@@ -138,7 +154,7 @@ Rectangle {
                         root.notification.appIcon
                         && root.notification.appIcon.length > 0
                     ) {
-                        return Quickshell.iconPath(
+                        return root.resolveAppIcon(
                             root.notification.appIcon
                         )
                     }

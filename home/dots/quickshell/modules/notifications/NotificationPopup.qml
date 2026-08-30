@@ -8,6 +8,20 @@ import "../../Config"
 Item {
     id: root
 
+    function resolveAppIcon(icon) {
+        if (!icon || icon.length === 0)
+            return ""
+
+        if (
+            icon.startsWith("file://")
+            || icon.startsWith("/")
+        ) {
+            return icon
+        }
+
+        return Quickshell.iconPath(icon)
+    }
+
     required property var backend
     required property var notification
     required property int notificationId
@@ -250,11 +264,9 @@ Item {
                         24 * Appearance.scale
 
                     source:
-                        root.cachedAppIcon.length > 0
-                            ? Quickshell.iconPath(
-                                root.cachedAppIcon
-                            )
-                            : ""
+                        root.resolveAppIcon(
+                            root.cachedAppIcon
+                        )
                 }
 
                 Text {
@@ -768,6 +780,7 @@ Item {
                 root.notification.appIcon
                     ? root.notification.appIcon
                     : ""
+            
 
             /*
              * Snapshot urgency while the live
