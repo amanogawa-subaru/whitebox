@@ -22,6 +22,7 @@ hl.bind(mainMod .. " + SHIFT + S", hl.dsp.exec_cmd([[grim -g "$(slurp)" - | conv
 local closeWindowBind = hl.bind(mainMod .. " + Q", hl.dsp.window.close())
 hl.bind(mainMod .. " + J", hl.dsp.layout("togglesplit"))    -- dwindle only
 hl.bind(mainMod .. " + P", hl.dsp.window.pseudo())
+
 -- Toggle fullscreen
 hl.bind(mainMod .. " + SHIFT + F", hl.dsp.window.fullscreen())
 
@@ -29,7 +30,6 @@ hl.bind(mainMod .. " + SHIFT + F", hl.dsp.window.fullscreen())
 hl.bind(mainMod .. " + F", hl.dsp.window.float({ action = "toggle" }))
 hl.bind(mainMod .. " + F", hl.dsp.window.resize({ x = 1000, y = 700, relative = false }))
 hl.bind(mainMod .. " + F", hl.dsp.window.center())
-
 
 -- Move focused window with mainMod + SHIFT + arrow keys
 hl.bind(mainMod .. " + SHIFT + left", hl.dsp.window.move({ direction = "left"}))

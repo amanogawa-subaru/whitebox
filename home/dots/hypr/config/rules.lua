@@ -67,3 +67,14 @@ hl.window_rule({
     float = true,
     center = true,
 })
+
+-- Nemo's "open with" window opens floating
+hl.window_rule({
+    name = "nemo-open-with-center",
+    match = {
+        class = "^nemo$",
+        title = "^Open with$",
+    },
+    center = true,
+    size = { 720, 530 },
+})
