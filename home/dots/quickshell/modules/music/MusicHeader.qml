@@ -108,6 +108,11 @@ Item {
         }
     }
 
+    FontMetrics {
+        id: trackMetrics
+        font: headerTrackText.font
+    }
+    
     Text {
         id: headerTrackText
 
@@ -136,14 +141,32 @@ Item {
             verticalCenter: parent.verticalCenter
         }
 
-        text: root.backend ? root.backend.compactText : ""
+        anchors.verticalCenterOffset: {
+            const bounds =
+                trackMetrics.tightBoundingRect(text)
 
+            const glyphCenter =
+                baselineOffset
+                + bounds.y
+                + bounds.height / 2
+
+            return implicitHeight / 2
+                - glyphCenter
+        }
+        
+        text:
+            root.backend
+                ? root.backend.compactText
+                : ""
+        
         color:
             root.hovered
                 ? Colors.base
                 : Colors.green
 
         font.pixelSize: Appearance.textSize
+        
+        
         elide: Text.ElideRight
         maximumLineCount: 1
 
