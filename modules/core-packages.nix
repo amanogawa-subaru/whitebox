@@ -6,8 +6,7 @@
   environment.systemPackages = with pkgs; [
     # Desktop UI/UX
     quickshell
-    hyprpaper
-    
+        
     # Utilities
     ddcutil
     brightnessctl

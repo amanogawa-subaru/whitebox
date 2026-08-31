@@ -10,6 +10,7 @@ import QtQuick
 import "Config"
 import "modules"
 import "modules/notifications"
+import "modules/wallpaper"
 
 PanelWindow {
     id: root
@@ -37,6 +38,24 @@ PanelWindow {
 
     NotificationBackend {
         id: notificationBackend
+    }
+
+    // ═════════════════════════════════════════
+    // Wallpaper backend + summoned picker
+    // ═════════════════════════════════════════
+
+    WallpaperBackend {
+        id: wallpaperBackend
+    }
+
+    WallpaperPicker {
+        id: wallpaperPicker
+
+        backend:
+            wallpaperBackend
+
+        screen:
+            root.screen
     }
 
     // ═════════════════════════════════════════
@@ -366,6 +385,36 @@ PanelWindow {
             } else {
                 utilityModule.openClipboard()
             }
+        }
+    }
+
+    /*
+     * Wallpaper is intentionally not a bar module.
+     * The picker is summoned externally, e.g.
+     * from a Hyprland keybind.
+     */
+    IpcHandler {
+        target:
+            "wallpaper"
+
+        function toggle(): void {
+            wallpaperPicker.toggle()
+        }
+
+        function open(): void {
+            wallpaperPicker.open()
+        }
+
+        function close(): void {
+            wallpaperPicker.close()
+        }
+
+        function set(path: string): void {
+            wallpaperBackend.setWallpaper(path)
+        }
+
+        function restore(): void {
+            wallpaperBackend.restore()
         }
     }
 }

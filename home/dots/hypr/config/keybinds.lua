@@ -13,6 +13,8 @@ hl.bind(mainMod .. " + B", hl.dsp.exec_cmd("librewolf"))
 hl.bind(mainMod .. " + E", hl.dsp.exec_cmd("nemo"))
 -- Search
 hl.bind(mainMod .. " + R", hl.dsp.exec_cmd("qs ipc call search toggle"))
+-- Wallpaper picker
+hl.bind(mainMod .. " + W", hl.dsp.exec_cmd("qs ipc call wallpaper toggle"))
 -- Screenshot
 hl.bind(mainMod .. " + SHIFT + S", hl.dsp.exec_cmd([[grim -g "$(slurp)" - | convert - -shave 1x1 PNG:- | swappy -f -]]))
 

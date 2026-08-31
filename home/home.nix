@@ -60,10 +60,18 @@
     size = 20;
   };
   
+  # Wallpaper daemon
+  services.hyprpaper = {
+    enable = true;
+
+    settings = {
+      ipc = true;
+      splash = false;
+    };
+  };
   
   # Dotfiles
   xdg.configFile = {
-    #"kitty".source = ./dots/kitty;
     "fastfetch".source = ./dots/fastfetch;
     "quickshell".source = ./dots/quickshell;
   };			
