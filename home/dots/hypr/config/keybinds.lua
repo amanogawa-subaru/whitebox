@@ -9,7 +9,7 @@ hl.bind(mainMod .. " + SHIFT + R", hl.dsp.exec_cmd("hyprctl reload; qs kill; sle
 
 
 hl.bind(mainMod .. " + Return", hl.dsp.exec_cmd("kitty"))
-hl.bind(mainMod .. " + B", hl.dsp.exec_cmd("firefox"))
+hl.bind(mainMod .. " + B", hl.dsp.exec_cmd("librewolf"))
 hl.bind(mainMod .. " + E", hl.dsp.exec_cmd("nemo"))
 -- Search
 hl.bind(mainMod .. " + R", hl.dsp.exec_cmd("qs ipc call search toggle"))
