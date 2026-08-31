@@ -43,6 +43,14 @@ FocusScope {
     property bool lockPending:
         false
 
+    /*
+     * Suspending is deferred for the same reason as
+     * locking: let the normal close choreography finish
+     * before the session is frozen.
+     */
+    property bool suspendPending:
+        false
+
     property bool suppressHover:
         false
 
@@ -320,6 +328,59 @@ FocusScope {
                 false
 
             lockProcess.running =
+                true
+        }
+    }
+
+
+    // ═════════════════════════════════════════
+    // Suspend
+    // ═════════════════════════════════════════
+
+    function suspendSession() {
+        if (root.suspendPending)
+            return
+
+        root.suspendPending =
+            true
+
+        /*
+         * Let UtilityModule finish the exact same
+         * close animation used everywhere else.
+         * systemctl suspend is launched by
+         * closeAnimation's completion handler below.
+         */
+        if (root.expanded) {
+            root.close()
+            return
+        }
+
+        suspendDelay.restart()
+    }
+
+    Process {
+        id: suspendProcess
+
+        command: [
+            "systemctl",
+            "suspend"
+        ]
+    }
+
+    Timer {
+        id: suspendDelay
+
+        interval:
+            30
+
+        repeat:
+            false
+
+        onTriggered: {
+            root.suspendPending =
+                false
+
+            suspendProcess.running =
                 true
         }
     }
@@ -1030,6 +1091,9 @@ FocusScope {
 
                     onLockRequested:
                         root.lockSession()
+
+                    onSuspendRequested:
+                        root.suspendSession()
                 }
                     }
     }
@@ -1106,6 +1170,9 @@ FocusScope {
         onFinished: {
             if (root.lockPending)
                 lockDelay.restart()
+
+            if (root.suspendPending)
+                suspendDelay.restart()
         }
 
         // ═════════════════════════════════════

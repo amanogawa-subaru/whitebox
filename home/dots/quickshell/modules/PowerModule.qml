@@ -13,6 +13,7 @@ FocusScope {
 
     signal closeRequested()
     signal lockRequested()
+    signal suspendRequested()
 
     property string userName:
         "User"
@@ -716,6 +717,9 @@ FocusScope {
 
             onLockRequested:
                 root.lockRequested()
+
+            onSuspendRequested:
+                root.suspendRequested()
 
             onCloseRequested:
                 root.closeRequested()

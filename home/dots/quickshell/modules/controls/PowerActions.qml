@@ -9,6 +9,7 @@ Item {
 
     signal closeRequested()
     signal lockRequested()
+    signal suspendRequested()
 
     implicitHeight:
         82 * Appearance.scale
@@ -186,6 +187,19 @@ Item {
                          */
                         if (modelData.label === "Lock") {
                             root.lockRequested()
+                            return
+                        }
+
+                        /*
+                         * Suspend is also deferred until
+                         * UtilityModule finishes its normal
+                         * close choreography. Suspending
+                         * immediately would freeze Quickshell
+                         * mid-animation and reveal that stale
+                         * expanded state on resume.
+                         */
+                        if (modelData.label === "Sleep") {
+                            root.suspendRequested()
                             return
                         }
 
