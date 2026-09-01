@@ -35,6 +35,17 @@ Item {
         root.stateDirectory
         + "/wallpaper"
 
+    /*
+     * Hyprlock reads this ordinary runtime file.
+     *
+     * We deliberately use a copied file rather than a
+     * symlink so Hyprlock never has to resolve the current
+     * Home Manager / Nix store wallpaper path itself.
+     */
+    readonly property string lockscreenWallpaper:
+        root.stateDirectory
+        + "/hyprlock-wallpaper"
+
     readonly property string defaultWallpaper:
         root.wallpaperDirectory
         + "/92501787_p0_1440.jpg"
@@ -238,6 +249,32 @@ Item {
                 root.restoreRetryCount =
                     0
 
+                /*
+                 * Keep Hyprlock's runtime background in sync
+                 * with the wallpaper Hyprpaper actually accepted.
+                 *
+                 * This runs for both:
+                 *   - interactive picker selections
+                 *   - startup restoration
+                 */
+                lockscreenProcess.exec([
+                    "sh",
+                    "-c",
+                    [
+                        'state_dir="$1"',
+                        'wallpaper="$2"',
+                        'lockscreen="$3"',
+                        '',
+                        'mkdir -p "$state_dir"',
+                        '',
+                        'cp --reflink=auto --remove-destination -- "$wallpaper" "$lockscreen"'
+                    ].join("\n"),
+                    "whitebox-hyprlock-wallpaper",
+                    root.stateDirectory,
+                    root.currentWallpaper,
+                    root.lockscreenWallpaper
+                ])
+
                 if (root.pendingPersist) {
                     persistProcess.exec([
                         "sh",
@@ -302,6 +339,23 @@ Item {
                 console.warn(
                     "WallpaperBackend: "
                     + "could not save wallpaper state"
+                )
+            }
+        }
+    }
+
+    // ═════════════════════════════════════════
+    // Hyprlock wallpaper copy
+    // ═════════════════════════════════════════
+
+    Process {
+        id: lockscreenProcess
+
+        onExited: (exitCode, exitStatus) => {
+            if (exitCode !== 0) {
+                console.warn(
+                    "WallpaperBackend: "
+                    + "could not update Hyprlock wallpaper"
                 )
             }
         }

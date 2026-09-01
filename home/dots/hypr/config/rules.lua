@@ -78,3 +78,15 @@ hl.window_rule({
     center = true,
     size = { 720, 530 },
 })
+
+-- Steam utility windows open floating
+hl.window_rule({
+    name = "float-steam-utility",
+    match = {
+        class = "^steam$",
+        title = "^(Steam Settings|Friends List)$",
+    },
+
+    float = true,
+    center = true,
+})
