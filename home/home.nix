@@ -146,21 +146,21 @@
       "inode/directory" = [ "nemo.desktop" ];
       "application/x-gnome-saved-search" = [ "nemo.desktop" ];
       "text/plain" = [ "geany.desktop" ];
-  	  "text/x-lua" = [ "geany.desktop" ];
-	  "text/x-qml" = [ "geany.desktop" ];
+      "text/x-lua" = [ "geany.desktop" ];
+      "text/x-qml" = [ "geany.desktop" ];
       "image/png" = [ "imv.desktop" ];
       "audio/flac" = [ "org.gnome.Lollypop.desktop"];
       "audio/mpeg" = [ "org.gnome.Lollypop.desktop"];
-	  "video/mp4" = [ "mpv.desktop" ];
+      "video/mp4" = [ "mpv.desktop" ];
       "video/x-matroska" = [ "mpv.desktop" ];
       "video/webm" = [ "mpv.desktop" ];
       "video/x-msvideo" = [ "mpv.desktop" ];
       "video/quicktime" = [ "mpv.desktop" ];
       "application/pdf" = [ "onlyoffice-desktopeditors.desktop" ];
       "x-scheme-handler/http" = [ "librewolf.desktop" ];
-	  "x-scheme-handler/https" = [ "librewolf.desktop" ];
-	  "text/html" = [ "librewolf.desktop" ];
-	  "application/xhtml+xml" = [ "librewolf.desktop" ];
+      "x-scheme-handler/https" = [ "librewolf.desktop" ];
+      "text/html" = [ "librewolf.desktop" ];
+      "application/xhtml+xml" = [ "librewolf.desktop" ];
     };
   };
   
