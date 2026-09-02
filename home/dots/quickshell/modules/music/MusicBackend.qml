@@ -190,6 +190,18 @@ Item {
             root.scrubbing =
                 false
 
+            root.cachedPosition =
+                (
+                    player.position !== undefined
+                    && isFinite(player.position)
+                    && player.position >= 0
+                )
+                    ? player.position
+                    : 0
+
+            root.lastPositionTickMs =
+                Date.now()
+
             root.queryDuration()
         }
 
@@ -215,6 +227,12 @@ Item {
 
             root.cachedTrackArtUrl =
                 ""
+
+            root.cachedPosition =
+                0
+
+            root.lastPositionTickMs =
+                0
 
             return
         }
@@ -418,6 +436,15 @@ Item {
 
     property real cachedTrackLength: 0
 
+    /*
+     * Keep the displayed playback position locally instead of binding
+     * the UI directly to player.position. Some MPRIS players update
+     * their position coarsely or briefly report stale values, which can
+     * make the timer/progress bar jump or flicker.
+     */
+    property real cachedPosition: 0
+    property double lastPositionTickMs: 0
+
     property bool scrubbing: false
     property real scrubPosition: 0
 
@@ -441,10 +468,7 @@ Item {
         if (root.scrubbing)
             return root.scrubPosition
 
-        if (root.player)
-            return root.player.position
-
-        return 0
+        return root.cachedPosition
     }
 
     property real progress: {
@@ -702,6 +726,12 @@ Item {
                 )
             )
 
+        root.cachedPosition =
+            safeTarget
+
+        root.lastPositionTickMs =
+            Date.now()
+
         seekProcess.exec([
             "playerctl",
             "--player",
@@ -729,8 +759,9 @@ Item {
             false
 
         onTriggered: {
-            if (root.player)
-                root.player.positionChanged()
+            root.requestPositionSync(
+                true
+            )
         }
     }
 
@@ -802,25 +833,30 @@ Item {
 
         const title =
             player.trackTitle
-                ? player.trackTitle
+                ? player.trackTitle.toString()
                 : ""
 
         const artist =
             player.trackArtist
-                ? player.trackArtist
+                ? player.trackArtist.toString()
                 : ""
 
-        const length =
-            player.lengthSupported
-                ? player.length
-                : 0
+        const url =
+            root.playerMediaUrl(
+                player
+            )
 
+        /*
+         * Duration is deliberately not part of track identity. Some
+         * players publish/refine it after title and artist, and treating
+         * that maturation as a new track causes needless state resets.
+         */
         return (
             title
             + "\u001f"
             + artist
             + "\u001f"
-            + length.toString()
+            + url
         )
     }
 
@@ -852,23 +888,69 @@ Item {
                 return
             }
 
+            const oldSignature =
+                root.cachedTitle
+                + "\u001f"
+                + root.cachedArtist
+                + "\u001f"
+                + root.cachedMediaUrl
+
+            const newTitle =
+                candidate.trackTitle
+                    ? candidate.trackTitle.toString()
+                    : ""
+
+            const newArtist =
+                candidate.trackArtist
+                    ? candidate.trackArtist.toString()
+                    : ""
+
+            const newUrl =
+                root.playerMediaUrl(
+                    candidate
+                )
+
+            const newSignature =
+                newTitle
+                + "\u001f"
+                + newArtist
+                + "\u001f"
+                + newUrl
+
+            const realTrackChange =
+                oldSignature.length > 2
+                && newSignature.length > 2
+                && oldSignature !== newSignature
+
             root.snapshotMetadata(
                 candidate
             )
 
-            root.cachedTrackLength =
-                0
+            if (realTrackChange) {
+                root.cachedTrackLength =
+                    0
 
-            root.ytDurationVideoId =
-                ""
+                root.cachedPosition =
+                    0
 
-            root.durationQueryPending =
-                false
+                root.lastPositionTickMs =
+                    Date.now()
 
-            root.ytDurationQueryPending =
-                false
+                root.ytDurationVideoId =
+                    ""
 
-            root.queryDuration()
+                root.durationQueryPending =
+                    false
+
+                root.ytDurationQueryPending =
+                    false
+
+                root.queryDuration()
+            } else if (
+                root.cachedTrackLength <= 0
+            ) {
+                root.queryDuration()
+            }
         }
     }
 
@@ -908,12 +990,12 @@ Item {
 
         const liveTitle =
             candidate.trackTitle
-                ? candidate.trackTitle
+                ? candidate.trackTitle.toString()
                 : ""
 
         const liveArtist =
             candidate.trackArtist
-                ? candidate.trackArtist
+                ? candidate.trackArtist.toString()
                 : ""
 
         const liveUrl =
@@ -923,35 +1005,71 @@ Item {
 
         const liveArtUrl =
             candidate.trackArtUrl
-                ? candidate.trackArtUrl
+                ? candidate.trackArtUrl.toString()
+                : ""
+
+        const cachedArtUrl =
+            root.cachedTrackArtUrl
+                ? root.cachedTrackArtUrl.toString()
                 : ""
 
         if (
             liveTitle === root.cachedTitle
             && liveArtist === root.cachedArtist
             && liveUrl === root.cachedMediaUrl
-            && liveArtUrl === root.cachedTrackArtUrl
+            && liveArtUrl === cachedArtUrl
         ) {
             return
         }
+
+        const oldSignature =
+            root.cachedTitle
+            + "\u001f"
+            + root.cachedArtist
+            + "\u001f"
+            + root.cachedMediaUrl
+
+        const newSignature =
+            liveTitle
+            + "\u001f"
+            + liveArtist
+            + "\u001f"
+            + liveUrl
+
+        const realTrackChange =
+            oldSignature.length > 2
+            && newSignature.length > 2
+            && oldSignature !== newSignature
 
         root.snapshotMetadata(
             candidate
         )
 
-        root.cachedTrackLength =
-            0
+        if (realTrackChange) {
+            root.cachedTrackLength =
+                0
 
-        root.ytDurationVideoId =
-            ""
+            root.cachedPosition =
+                0
 
-        root.durationQueryPending =
-            false
+            root.lastPositionTickMs =
+                Date.now()
 
-        root.ytDurationQueryPending =
-            false
+            root.ytDurationVideoId =
+                ""
 
-        root.queryDuration()
+            root.durationQueryPending =
+                false
+
+            root.ytDurationQueryPending =
+                false
+
+            root.queryDuration()
+        } else if (
+            root.cachedTrackLength <= 0
+        ) {
+            root.queryDuration()
+        }
     }
 
     Timer {
@@ -1265,19 +1383,168 @@ Item {
     }
 
     // ═════════════════════════════════════════
-    // Position refresh
+    // Position clock / MPRIS reconciliation
     // ═════════════════════════════════════════
 
-    FrameAnimation {
+    function syncPositionFromPlayer(force) {
+        if (
+            !root.player
+            || root.scrubbing
+        ) {
+            return
+        }
+
+        const live =
+            Number(root.player.position)
+
+        if (
+            !isFinite(live)
+            || live < 0
+        ) {
+            return
+        }
+
+        const difference =
+            Math.abs(
+                live
+                - root.cachedPosition
+            )
+
+        /*
+         * Ignore small discrepancies from coarse MPRIS clocks so the
+         * visible timer does not step backward/forward. Large differences
+         * are treated as a real seek or meaningful drift.
+         */
+        if (
+            force
+            || !root.playing
+            || difference >= 1.5
+        ) {
+            root.cachedPosition =
+                live
+        }
+
+        root.lastPositionTickMs =
+            Date.now()
+    }
+
+    function requestPositionSync(force) {
+        if (!root.player)
+            return
+
+        /*
+         * Refresh the MPRIS Position property once, then read it after
+         * Quickshell has had a chance to process the update.
+         */
+        root.player.positionChanged()
+
+        Qt.callLater(
+            function() {
+                root.syncPositionFromPlayer(
+                    force === true
+                )
+            }
+        )
+    }
+
+    /*
+     * Smooth local clock for the visible timer and progress bar.
+     */
+    Timer {
+        id: positionClock
+
+        interval:
+            100
+
+        repeat:
+            true
+
         running:
             root.active
             && root.player
             && root.playing
             && !root.scrubbing
 
+        triggeredOnStart:
+            true
+
         onTriggered: {
-            if (root.player)
-                root.player.positionChanged()
+            const now =
+                Date.now()
+
+            if (root.lastPositionTickMs <= 0) {
+                root.lastPositionTickMs =
+                    now
+                return
+            }
+
+            const elapsed =
+                Math.max(
+                    0,
+                    (
+                        now
+                        - root.lastPositionTickMs
+                    ) / 1000
+                )
+
+            root.lastPositionTickMs =
+                now
+
+            root.cachedPosition =
+                Math.max(
+                    0,
+                    Math.min(
+                        root.trackLength > 0
+                            ? root.trackLength
+                            : Number.MAX_VALUE,
+                        root.cachedPosition
+                            + elapsed
+                    )
+                )
+        }
+    }
+
+    /*
+     * MPRIS stays authoritative, but we only sample it occasionally.
+     * Seeks and playback-state transitions still force an immediate sync.
+     */
+    Timer {
+        id: positionSyncTimer
+
+        interval:
+            5000
+
+        repeat:
+            true
+
+        running:
+            root.active
+            && root.player
+            && !root.scrubbing
+
+        triggeredOnStart:
+            true
+
+        onTriggered:
+            root.requestPositionSync(
+                !root.playing
+            )
+    }
+
+    Connections {
+        target:
+            root.player
+
+        function onPlaybackStateChanged() {
+            if (!root.player)
+                return
+
+            root.lastPositionTickMs =
+                Date.now()
+
+            root.requestPositionSync(
+                true
+            )
         }
     }
 
