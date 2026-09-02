@@ -35,6 +35,19 @@ FocusScope {
         ""
 
     /*
+     * Remember the restored entry's preview text too.
+     * cliphist may not have created the replacement
+     * entry by the time our first refresh runs, so we
+     * identify the replacement by content rather than
+     * blindly assuming the newest entry is ours.
+     */
+    property string pendingPinnedRestoreText:
+        ""
+
+    property int pendingPinnedRestoreAttempts:
+        0
+
+    /*
      * cliphist has no native pin concept, so pins
      * are a lightweight Quickshell-side feature.
      * IDs are persisted in the user's cache and
@@ -259,10 +272,17 @@ FocusScope {
                 }
 
                 /*
-                 * A restored clipboard item is re-added by
-                 * cliphist as the newest entry. Preserve a
-                 * pin across that ID change instead of
-                 * leaving the pin attached to the stale ID.
+                 * A restored clipboard item can be
+                 * re-added by cliphist under a new ID.
+                 *
+                 * Do not assume result[0] is already
+                 * that replacement. wl-copy may finish
+                 * before cliphist has observed the new
+                 * clipboard contents.
+                 *
+                 * Instead, look for a new entry with
+                 * the same preview text and retry for
+                 * a short period if it has not appeared.
                  */
                 if (
                     root.pendingPinnedRestoreId !== ""
@@ -271,10 +291,17 @@ FocusScope {
                     const oldId =
                         root.pendingPinnedRestoreId
 
-                    const newId =
-                        String(result[0].id)
+                    const restoredEntry =
+                        result.find(entry =>
+                            String(entry.id) !== oldId
+                            && entry.text
+                                === root.pendingPinnedRestoreText
+                        )
 
-                    if (newId !== oldId) {
+                    if (restoredEntry) {
+                        const newId =
+                            String(restoredEntry.id)
+
                         const next =
                             root.pinnedIds
                                 .filter(id =>
@@ -292,10 +319,46 @@ FocusScope {
                             next
 
                         root.savePins()
-                    }
 
-                    root.pendingPinnedRestoreId =
-                        ""
+                        root.pendingPinnedRestoreId =
+                            ""
+
+                        root.pendingPinnedRestoreText =
+                            ""
+
+                        root.pendingPinnedRestoreAttempts =
+                            0
+                    } else {
+                        root.pendingPinnedRestoreAttempts++
+
+                        /*
+                         * cliphist may simply not have
+                         * observed wl-copy yet. Keep the
+                         * migration alive instead of
+                         * throwing away the pin.
+                         */
+                        if (
+                            root.pendingPinnedRestoreAttempts
+                            < 5
+                        ) {
+                            restoreRefreshTimer.restart()
+                        } else {
+                            /*
+                             * Give up without modifying
+                             * the existing pin. If the
+                             * original cliphist ID was
+                             * retained, it remains pinned.
+                             */
+                            root.pendingPinnedRestoreId =
+                                ""
+
+                            root.pendingPinnedRestoreText =
+                                ""
+
+                            root.pendingPinnedRestoreAttempts =
+                                0
+                        }
+                    }
                 }
 
                 root.entries =
@@ -316,10 +379,34 @@ FocusScope {
         const stringId =
             String(id)
 
-        root.pendingPinnedRestoreId =
-            root.isPinned(stringId)
-                ? stringId
-                : ""
+        if (root.isPinned(stringId)) {
+            root.pendingPinnedRestoreId =
+                stringId
+
+            const entry =
+                root.entries.find(
+                    item =>
+                        String(item.id)
+                        === stringId
+                )
+
+            root.pendingPinnedRestoreText =
+                entry
+                    ? entry.text
+                    : ""
+
+            root.pendingPinnedRestoreAttempts =
+                0
+        } else {
+            root.pendingPinnedRestoreId =
+                ""
+
+            root.pendingPinnedRestoreText =
+                ""
+
+            root.pendingPinnedRestoreAttempts =
+                0
+        }
 
         /*
          * cliphist IDs are numeric, but quote it
@@ -348,8 +435,12 @@ FocusScope {
     Timer {
         id: restoreRefreshTimer
 
+        /*
+         * Give cliphist a little more time than the
+         * original 120 ms to observe wl-copy.
+         */
         interval:
-            120
+            200
 
         repeat:
             false
