@@ -148,9 +148,12 @@
       "text/plain" = [ "geany.desktop" ];
       "text/x-lua" = [ "geany.desktop" ];
       "text/x-qml" = [ "geany.desktop" ];
+      "image/jpeg" = [ "imv.desktop" ];
       "image/png" = [ "imv.desktop" ];
       "image/webp" = [ "imv.desktop" ];
-      "image/jpeg" = [ "imv.desktop" ];
+      "image/gif" = [ "imv.desktop" ];
+      "image/bmp" = [ "imv.desktop" ];
+      "image/tiff" = [ "imv.desktop" ];
       "audio/flac" = [ "org.gnome.Lollypop.desktop"];
       "audio/mpeg" = [ "org.gnome.Lollypop.desktop"];
       "video/mp4" = [ "mpv.desktop" ];
