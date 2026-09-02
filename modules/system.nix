@@ -57,13 +57,21 @@
   security.pam.services.hyprlock = {};
   
   # Japanese input
-  i18n.inputMethod = {
-    enable = true;
-    type = "fcitx5";
-
-    fcitx5.addons = with pkgs; [
-      fcitx5-mozc
-      fcitx5-gtk
+  i18n = {
+    defaultLocale = "en_US.UTF-8";
+    
+    extraLocales = [
+      "ja_JP.UTF-8/UTF-8"
     ];
+    
+    inputMethod = {
+      enable = true;
+      type = "fcitx5";
+
+      fcitx5.addons = with pkgs; [
+        fcitx5-mozc
+        fcitx5-gtk
+      ];
+    };  
   };
 }
