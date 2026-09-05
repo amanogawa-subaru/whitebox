@@ -8,7 +8,7 @@ import "../../Config"
 
 Rectangle {
     id: root
-    
+
     function resolveAppIcon(icon) {
         if (!icon || icon.length === 0)
             return ""
@@ -22,12 +22,19 @@ Rectangle {
 
         return Quickshell.iconPath(icon)
     }
-    
+
 
     required property var notification
 
     property color accentColor:
         Colors.sapphire
+
+    /*
+     * Whether the notification body is currently
+     * showing its complete contents.
+     */
+    property bool expanded:
+        false
 
     /*
      * Critical notifications override the normal
@@ -172,9 +179,9 @@ Rectangle {
                     parent
 
                 text:
-					root.critical
-						? ""
-						: "󰋽"
+                    root.critical
+                        ? ""
+                        : "󰋽"
 
                 font.family:
                     "Symbols Nerd Font"
@@ -259,7 +266,13 @@ Rectangle {
                     Text.ElideRight
             }
 
+            // ─────────────────────────────────
+            // Notification body
+            // ─────────────────────────────────
+
             Text {
+                id: bodyText
+
                 width:
                     parent.width
 
@@ -283,10 +296,158 @@ Rectangle {
                     Text.Wrap
 
                 maximumLineCount:
-                    3
+                    root.expanded
+                        ? 2147483647
+                        : 3
 
                 elide:
-                    Text.ElideRight
+                    root.expanded
+                        ? Text.ElideNone
+                        : Text.ElideRight
+            }
+
+            /*
+             * Invisible measurement copy.
+             *
+             * bodyText itself is capped at three lines while
+             * collapsed, so its implicitHeight cannot tell us
+             * whether additional text exists.
+             *
+             * This copy renders the same text with no line
+             * limit and lets us compare the full height with
+             * the collapsed body's height.
+             */
+            Text {
+                id: bodyMeasurement
+
+                width:
+                    bodyText.width
+
+                visible:
+                    false
+
+                text:
+                    root.notification.body
+                        ? root.notification.body
+                        : ""
+
+                textFormat:
+                    Text.PlainText
+
+                font.pixelSize:
+                    Appearance.textSize - 1
+
+                wrapMode:
+                    Text.Wrap
+            }
+
+            // ─────────────────────────────────
+            // Expand / collapse
+            // ─────────────────────────────────
+
+            Item {
+                id: expandButton
+
+                width:
+                    parent.width
+
+                height:
+                    22 * Appearance.scale
+
+                /*
+                 * Show the control only when the complete
+                 * body requires more space than the
+                 * three-line collapsed body.
+                 */
+                visible:
+                    bodyText.visible
+                    && (
+                        root.expanded
+                        || bodyMeasurement.implicitHeight
+                            > bodyText.implicitHeight + 0.5
+                    )
+
+                z:
+                    2
+
+                Row {
+                    anchors.right:
+                        parent.right
+
+                    anchors.verticalCenter:
+                        parent.verticalCenter
+
+                    spacing:
+                        5 * Appearance.scale
+
+                    Text {
+                        text:
+                            root.expanded
+                                ? "Less"
+                                : "More"
+
+                        color:
+                            expandMouse.containsMouse
+                                ? root.effectiveAccent
+                                : Colors.subtext0
+
+                        font.pixelSize:
+                            Appearance.textSize - 2
+
+                        font.bold:
+                            true
+
+                        Behavior on color {
+                            ColorAnimation {
+                                duration:
+                                    130
+                            }
+                        }
+                    }
+
+                    Text {
+                        text:
+                            root.expanded
+                                ? "󰅃"
+                                : "󰅀"
+
+                        font.family:
+                            "Symbols Nerd Font"
+
+                        font.pixelSize:
+                            Appearance.iconSize - 4
+
+                        color:
+                            expandMouse.containsMouse
+                                ? root.effectiveAccent
+                                : Colors.subtext0
+
+                        Behavior on color {
+                            ColorAnimation {
+                                duration:
+                                    130
+                            }
+                        }
+                    }
+                }
+
+                MouseArea {
+                    id: expandMouse
+
+                    anchors.fill:
+                        parent
+
+                    hoverEnabled:
+                        true
+
+                    cursorShape:
+                        Qt.PointingHandCursor
+
+                    onClicked: {
+                        root.expanded =
+                            !root.expanded
+                    }
+                }
             }
         }
 
