@@ -8,6 +8,9 @@
     nemo-with-extensions
     ffmpegthumbnailer
     bulky
+    papers # for thumbnailing cbz comics
+    unzip
+    file
     
     # Media
     imv
@@ -23,5 +26,4 @@
     fastfetch
     btop
   ];
-  
 }

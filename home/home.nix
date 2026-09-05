@@ -166,9 +166,17 @@
       "x-scheme-handler/https" = [ "librewolf.desktop" ];
       "text/html" = [ "librewolf.desktop" ];
       "application/xhtml+xml" = [ "librewolf.desktop" ];
+      "application/vnd.comicbook+zip" = [ "mcomix.desktop" ];
     };
   };
   
+  # Comics thumbnailer
+  xdg.dataFile."thumbnailers/papers-comics.thumbnailer".text = ''
+    [Thumbnailer Entry]
+    TryExec=papers-thumbnailer
+    Exec=papers-thumbnailer -s %s %i %o
+    MimeType=application/vnd.comicbook+zip;application/vnd.comicbook-rar;application/x-cb7;application/x-cbt;
+  '';
   
   # Set default terminal for nemo
   dconf = {
