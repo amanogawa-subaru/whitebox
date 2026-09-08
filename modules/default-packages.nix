@@ -21,7 +21,6 @@
     geany
     
     # CLI
-    vim
     neovim
     fastfetch
     btop
