@@ -10,6 +10,22 @@
   };
 
   programs.dconf.enable = true;
+  
+  # Catppuccin universal override
+  environment.systemPackages = [
+    (pkgs.catppuccin-gtk.override {
+      accents = [ "pink" ];
+      size = "standard";
+      tweaks = [ ];
+      variant = "frappe";
+    })
+  ];
+
+  environment.etc."xdg/gtk-3.0/settings.ini".text = ''
+    [Settings]
+    gtk-theme-name=catppuccin-frappe-pink-standard
+    gtk-application-prefer-dark-theme=true
+  '';
 
   # Desktop-related Home Manager settings
   home-manager.users.${username} = {
@@ -40,6 +56,25 @@
         RestartSec = 2;
       };
       
+      Install = {
+        WantedBy = [ "graphical-session.target" ];
+      };
+    };
+ 
+    # Hyprland Polkit agent
+    systemd.user.services.hyprpolkitagent = {
+      Unit = {
+        Description = "Hyprland Polkit Authentication Agent";
+        PartOf = [ "graphical-session.target" ];
+        After = [ "graphical-session.target" ];
+      };
+
+      Service = {
+        ExecStart = "${pkgs.hyprpolkitagent}/libexec/hyprpolkitagent";
+        Restart = "on-failure";
+        RestartSec = 2;
+      };
+
       Install = {
         WantedBy = [ "graphical-session.target" ];
       };
