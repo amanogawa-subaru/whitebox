@@ -11,7 +11,7 @@
 
   programs.dconf.enable = true;
   
-  # Catppuccin universal override
+  # System-wide GTK3 theme fallback
   environment.systemPackages = [
     (pkgs.catppuccin-gtk.override {
       accents = [ "pink" ];
@@ -77,6 +77,16 @@
 
       Install = {
         WantedBy = [ "graphical-session.target" ];
+      };
+    };
+
+    # Hyprpaper user service
+    services.hyprpaper = {
+      enable = true;
+
+      settings = {
+        ipc = true;
+        splash = false;
       };
     };
 

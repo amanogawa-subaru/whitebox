@@ -68,16 +68,6 @@
     size = 20;
   };
   
-  # Wallpaper daemon
-  services.hyprpaper = {
-    enable = true;
-
-    settings = {
-      ipc = true;
-      splash = false;
-    };
-  };
-  
   # Dotfiles
   xdg.configFile = {
     "fastfetch".source = ./dots/fastfetch;
@@ -115,6 +105,7 @@
 	    force = true;
 	    packages = with firefox-addons.packages.${pkgs.system}; [
 	      firefox-color
+	      ublock-origin
 	    ];
       };
     };
