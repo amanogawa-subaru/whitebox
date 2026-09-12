@@ -3,7 +3,7 @@
 -- Sets "Windows" key as main modifier
 local mainMod = "SUPER" 
 -- Quit hyprland
-hl.bind(mainMod .. " + SHIFT + Q", hl.dsp.exec_cmd("command -v hyprshutdown >/dev/null 2>&1 && hyprshutdown || hyprctl dispatch 'hl.dsp.exit()'")) 
+hl.bind(mainMod .. " + SHIFT + Q", hl.dsp.exec_cmd("uwsm stop")) 
 -- Reset hyprland and quickshell
 hl.bind(mainMod .. " + SHIFT + R", hl.dsp.exec_cmd("hyprctl reload; qs kill; sleep 0.2; qs"))
 
