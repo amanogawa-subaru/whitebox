@@ -47,9 +47,10 @@
     inherit username;
   };
   
-  home-manager.users.${username} = 
-    import ../home/home.nix;
-  
+  home-manager.users.${username}.imports = [ 
+    ../home
+  ];
+
   # I2C support for external monitor control
   hardware.i2c.enable = true;
   
