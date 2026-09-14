@@ -2,19 +2,6 @@
  
 { pkgs, username, ... }:
 
-  let
-    cbz-thumbnailer = pkgs.writeShellApplication {
-      name = "whitebox-cbz-thumbnailer";
-
-      runtimeInputs = with pkgs; [
-        _7zz
-	imagemagick
-      ];
-
-      text = builtins.readFile ./scripts/cbz-thumbnailer;
-    };
-  in
-
 {
   home.username = username;
   home.homeDirectory = "/home/${username}";
@@ -80,22 +67,8 @@
     extraConfig = builtins.readFile ./dots/kitty/kitty.conf;
   };
   
-  # Comics thumbnailer
-  xdg.dataFile."thumbnailers/whitebox-comics.thumbnailer".text = ''
-    [Thumbnailer Entry]
-    Exec=${cbz-thumbnailer}/bin/whitebox-cbz-thumbnailer %i %s %o
-    MimeType=application/vnd.comicbook+zip;
-  '';
-  
-  # Set default terminal for nemo
-  dconf = {
-    settings = {
-      "org/cinnamon/desktop/applications/terminal" = {
-        exec = "kitty";
-      };
-      "org/gnome/desktop/interface" = {
-        color-scheme = "prefer-dark";
-      };    
-    };
+  # Prefer dark color scheme
+  dconf.settings."org/gnome/desktop/interface" = {
+    color-scheme = "prefer-dark";
   };
 }
