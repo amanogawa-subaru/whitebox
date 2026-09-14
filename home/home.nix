@@ -58,19 +58,7 @@
       gtk-application-prefer-dark-theme = true;
     };   
   };
-
-
-  # Create user directories
-  xdg = {
-    enable = true;
-    	
-    userDirs = {
-      enable = true;
-      createDirectories = true;
-    };
-  };  
-
-  
+ 
   # Cursor
   home.pointerCursor = {
     enable = true;
