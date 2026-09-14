@@ -2,6 +2,19 @@
  
 { pkgs, username, firefox-addons, ... }:
 
+  let
+    cbz-thumbnailer = pkgs.writeShellApplication {
+      name = "whitebox-cbz-thumbnailer";
+
+      runtimeInputs = with pkgs; [
+        _7zz
+	imagemagick
+      ];
+
+      text = builtins.readFile ./scripts/cbz-thumbnailer;
+    };
+  in
+
 {
   home.username = username;
   home.homeDirectory = "/home/${username}";
@@ -162,11 +175,10 @@
   };
   
   # Comics thumbnailer
-  xdg.dataFile."thumbnailers/papers-comics.thumbnailer".text = ''
+  xdg.dataFile."thumbnailers/whitebox-comics.thumbnailer".text = ''
     [Thumbnailer Entry]
-    TryExec=papers-thumbnailer
-    Exec=papers-thumbnailer -s %s %i %o
-    MimeType=application/vnd.comicbook+zip;application/vnd.comicbook-rar;application/x-cb7;application/x-cbt;
+    Exec=${cbz-thumbnailer}/bin/whitebox-cbz-thumbnailer %i %s %o
+    MimeType=application/vnd.comicbook+zip;
   '';
   
   # Set default terminal for nemo

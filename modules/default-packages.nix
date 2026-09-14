@@ -8,7 +8,7 @@
     nemo-with-extensions
     ffmpegthumbnailer
     bulky
-    papers # for thumbnailing cbz comics
+    webp-pixbuf-loader # for thumbnailing webp
     unzip
     file
     

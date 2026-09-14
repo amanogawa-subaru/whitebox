@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+set -o pipefail
+
+archive="$1"
+size="$2"
+output="$3"
+
+{
+  echo "================================"
+  echo "ARCHIVE: $archive"
+  echo "SIZE: $size"
+  echo "OUTPUT: $output"
+} >> /tmp/whitebox-cbz-debug.log
+
+first_image="$(
+  7zz l -slt "$archive" \
+  | sed -n 's/^Path = //p' \
+  | grep -Ei '\.(jpg|jpeg|png|webp)$' \
+  | sort -V \
+  | sed -n '1p'
+)"
+
+echo "FIRST_IMAGE: $first_image" >> /tmp/whitebox-cbz-debug.log
+
+if [ -z "$first_image" ]; then
+  echo "RESULT: NO SUPPORTED IMAGE" >> /tmp/whitebox-cbz-debug.log
+  echo >> /tmp/whitebox-cbz-debug.log
+
+  echo "No supported images in archive" >&2
+  exit 1
+fi
+
+if ! 7zz e \
+  -so \
+  -spd \
+  "$archive" \
+  "$first_image" \
+  | magick - -thumbnail "${size}x${size}" "png:$output"
+then
+  echo "RESULT: EXTRACTION/CONVERSION FAILED" >> /tmp/whitebox-cbz-debug.log
+  echo >> /tmp/whitebox-cbz-debug.log
+  exit 1
+fi
+
+echo "RESULT: SUCCESS" >> /tmp/whitebox-cbz-debug.log
+echo >> /tmp/whitebox-cbz-debug.log
