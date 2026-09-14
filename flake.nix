@@ -35,5 +35,7 @@
         inherit firefox-addons;
       };
     };
+
+    homeModules.default = import ./home;
   };
 }
