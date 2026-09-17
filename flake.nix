@@ -10,7 +10,7 @@
     nixosModules.default = {
       imports = [
         home-manager.nixosModules.home-manager
-        ./imports.nix
+        ./default.nix
       ];
       
       home-manager.sharedModules = [

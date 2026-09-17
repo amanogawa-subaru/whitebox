@@ -1,6 +1,6 @@
 # This module is intended for desktop settings
 
-{ pkgs, username, ... }:
+{ pkgs, ... }:
 
 {
   programs.hyprland = {
@@ -11,6 +11,9 @@
 
   programs.dconf.enable = true;
   
+  # PAM for lockscreen
+  security.pam.services.hyprlock = {};
+
   # System-wide GTK3 theme fallback
   environment.systemPackages = [
     (pkgs.catppuccin-gtk.override {
@@ -26,73 +29,4 @@
     gtk-theme-name=catppuccin-frappe-pink-standard
     gtk-application-prefer-dark-theme=true
   '';
-
-  # Desktop-related Home Manager settings
-  home-manager.users.${username} = {
-    # Hyprland / Hyprlock / Hypridle config
-    xdg.configFile = {
-      "hypr/colors.lua".source = ../home/dots/hypr/colors.lua;
-      "hypr/hyprland.lua".source = ../home/dots/hypr/hyprland.lua;
-      "hypr/hyprlock.conf".source = ../home/dots/hypr/hyprlock.conf;
-      "hypr/hypridle.conf".source = ../home/dots/hypr/hypridle.conf;
-
-      "hypr/config".source = ../home/dots/hypr/config;
-      "hypr/wallpapers".source = ../home/dots/hypr/wallpapers;
-    };
-
-    # Clipboard history backend for Quickshell
-    systemd.user.services.cliphist = {
-      Unit = {
-        Description = "Clipboard history";
-        PartOf = [ "graphical-session.target" ];
-        After = [ "graphical-session.target" ];
-      };
-
-      Service = {
-        ExecStart =
-          "${pkgs.wl-clipboard}/bin/wl-paste --watch ${pkgs.cliphist}/bin/cliphist store";
-
-        Restart = "on-failure";
-        RestartSec = 2;
-      };
-      
-      Install = {
-        WantedBy = [ "graphical-session.target" ];
-      };
-    };
- 
-    # Hyprland Polkit agent
-    systemd.user.services.hyprpolkitagent = {
-      Unit = {
-        Description = "Hyprland Polkit Authentication Agent";
-        PartOf = [ "graphical-session.target" ];
-        After = [ "graphical-session.target" ];
-      };
-
-      Service = {
-        ExecStart = "${pkgs.hyprpolkitagent}/libexec/hyprpolkitagent";
-        Restart = "on-failure";
-        RestartSec = 2;
-      };
-
-      Install = {
-        WantedBy = [ "graphical-session.target" ];
-      };
-    };
-
-    # Hyprpaper user service
-    services.hyprpaper = {
-      enable = true;
-
-      settings = {
-        ipc = true;
-        splash = false;
-      };
-    };
-
-    # Hypridle user service
-    services.hypridle = {
-      enable = true;
-    };
-  };
 }
