@@ -20,7 +20,4 @@
     yt-dlp
     playerctl
   ];
-  
-  # Lock screen
-  programs.hyprlock.enable = true;
 }

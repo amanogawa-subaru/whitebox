@@ -3,17 +3,20 @@
 { pkgs, ... }:
 
 {
+  # Hyprland as the compositor
   programs.hyprland = {
     enable = true;
     withUWSM = true;
     xwayland.enable = true;
   };
-
-  programs.dconf.enable = true;
   
-  # PAM for lockscreen
+  # Lockscreen
+  programs.hyprlock.enable = true;
   security.pam.services.hyprlock = {};
 
+  # dconf support
+  programs.dconf.enable = true;
+  
   # System-wide GTK3 theme fallback
   environment.systemPackages = [
     (pkgs.catppuccin-gtk.override {
