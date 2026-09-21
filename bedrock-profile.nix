@@ -1,0 +1,6 @@
+{
+  nixpkgsFollowers = [
+    "home-manager"
+    "catppuccin"
+  ];
+}
