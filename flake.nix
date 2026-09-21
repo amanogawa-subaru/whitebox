@@ -17,7 +17,5 @@
         catppuccin.homeModules.catppuccin
       ];
     };
-
-    homeModules.default = import ./home;
   };
 }
