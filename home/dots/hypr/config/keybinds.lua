@@ -8,7 +8,7 @@ hl.bind(mainMod .. " + SHIFT + Q", hl.dsp.exec_cmd("uwsm stop"))
 hl.bind(mainMod .. " + SHIFT + R", hl.dsp.exec_cmd("hyprctl reload; qs kill; sleep 0.2; qs"))
 
 
-hl.bind(mainMod .. " + Return", hl.dsp.exec_cmd("kitty"))
+hl.bind(mainMod .. " + Return", hl.dsp.exec_cmd("foot"))
 hl.bind(mainMod .. " + B", hl.dsp.exec_cmd("librewolf"))
 hl.bind(mainMod .. " + E", hl.dsp.exec_cmd("nemo"))
 -- Search

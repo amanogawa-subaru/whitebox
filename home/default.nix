@@ -15,6 +15,8 @@
   xdg.configFile = {
     "fastfetch".source = ./dots/fastfetch;
     "quickshell".source = ./dots/quickshell;
+
+    "foot/colors.ini".source = ./dots/foot/colors.ini;
     
     "hypr/colors.lua".source = ./dots/hypr/colors.lua;
     "hypr/hyprland.lua".source = ./dots/hypr/hyprland.lua;
@@ -25,12 +27,6 @@
     "hypr/wallpapers".source = ./dots/hypr/wallpapers;
   };			
 
-  # Enable kitty terminal
-  programs.kitty = {
-    enable = true;
-    extraConfig = builtins.readFile ./dots/kitty/kitty.conf;
-  };
-  
   # Hyprland Polkit agent
   systemd.user.services.hyprpolkitagent = {
     Unit = {

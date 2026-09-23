@@ -71,7 +71,7 @@ Item {
         if (app.runInTerminal) {
             command =
                 [
-                    "kitty",
+                    "foot",
                     "--"
                 ].concat(command)
         }
@@ -1135,7 +1135,7 @@ Item {
                 Quickshell.execDetached({
                     command:
                         [
-                            "kitty",
+                            "foot",
                             "--"
                         ].concat(app.command),
 
