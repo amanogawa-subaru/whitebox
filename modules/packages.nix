@@ -10,7 +10,6 @@
     # Utilities
     ddcutil
     brightnessctl
-    wl-clipboard
     cliphist
     swappy
     cava
