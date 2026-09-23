@@ -12,8 +12,6 @@
     brightnessctl
     wl-clipboard
     cliphist
-    grim
-    slurp
     swappy
     cava
     imagemagick
